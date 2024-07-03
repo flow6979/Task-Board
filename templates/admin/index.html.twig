@@ -1,7 +1,17 @@
+{# templates/admin/index.html.twig #}
 {% extends 'base.html.twig' %}
 
 {% block title %}Hello AdminController!{% endblock %}
 
 {% block body %}
-<h1 class="text-primary">this is admin page</h1>
+<h1 class="text-primary">This is the admin page</h1>
+
+{% if admin_user %}
+    <p><strong>Full Name:</strong> {{ admin_user.fullName }}</p>
+    <p><strong>Email:</strong> {{ admin_user.email }}</p>
+    <p><strong>Role:</strong> {{ admin_user.role }}</p>
+    <p><strong>Phone Number:</strong> {{ admin_user.phoneNumber }}</p>
+{% else %}
+    <p>No admin user found.</p>
+{% endif %}
 {% endblock %}

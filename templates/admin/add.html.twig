@@ -1,0 +1,17 @@
+{# templates/admin/add.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Add Admin{% endblock %}
+
+{% block body %}
+<h1 class="text-primary">Add Admin</h1>
+
+{{ form_start(form) }}
+    {{ form_row(form.email) }}
+    {{ form_row(form.password) }}
+    {{ form_row(form.fullName) }}
+    {{ form_row(form.phoneNumber) }}
+    {{ form_row(form.team) }}
+    <button class="btn btn-primary">Add Admin</button>
+{{ form_end(form) }}
+{% endblock %}

@@ -108,4 +108,26 @@ class User
 
         return $this;
     }
+
+    // Implement UserInterface methods
+    public function getUsername(): string
+    {
+        return $this->email;
+    }
+
+    public function getSalt(): ?string
+    {
+        return null;
+    }
+
+    public function eraseCredentials(): void
+    {
+        // If you store any temporary, sensitive data on the user, clear it here
+        // $this->plainPassword = null;
+    }
+
+    public function getRoles(): array
+    {
+        return [$this->role];
+    }
 }
