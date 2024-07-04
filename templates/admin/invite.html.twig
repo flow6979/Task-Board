@@ -4,10 +4,12 @@
 {% block title %}Invite Admin{% endblock %}
 
 {% block body %}
-<h1 class="text-primary">Invite Admin</h1>
+<h1 class="text-primary">Invite User</h1>
 
 {{ form_start(form) }}
     {{ form_row(form.email) }}
+    {{ form_row(form.fullName) }}
+
     <button class="btn btn-primary">Send Invitation</button>
 {{ form_end(form) }}
 {% endblock %}

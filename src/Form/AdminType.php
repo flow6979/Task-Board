@@ -17,14 +17,13 @@ class AdminType extends AbstractType
     {
         $builder
             ->add('email', EmailType::class)
-            ->add('password', PasswordType::class)
+            ->add('password', PasswordType::class, [
+                'mapped' => false, // Don't map this field to the User entity directly
+                'required' => true,
+            ])
             ->add('fullName', TextType::class)
             ->add('phoneNumber', TextType::class, ['required' => false])
-            ->add('team', EntityType::class, [
-                'class' => Team::class,
-                'choice_label' => 'name',
-                'required' => false
-            ]);
+           ;
     }
 
     public function configureOptions(OptionsResolver $resolver): void

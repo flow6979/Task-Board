@@ -1,17 +1,44 @@
 {# templates/admin/index.html.twig #}
 {% extends 'base.html.twig' %}
 
-{% block title %}Hello AdminController!{% endblock %}
+{% block title %}Admin Panel{% endblock %}
 
 {% block body %}
-<h1 class="text-primary">This is the admin page</h1>
+    <h1 class="text-primary">Admin Panel</h1>
 
-{% if admin_user %}
-    <p><strong>Full Name:</strong> {{ admin_user.fullName }}</p>
-    <p><strong>Email:</strong> {{ admin_user.email }}</p>
-    <p><strong>Role:</strong> {{ admin_user.role }}</p>
-    <p><strong>Phone Number:</strong> {{ admin_user.phoneNumber }}</p>
-{% else %}
-    <p>No admin user found.</p>
-{% endif %}
+    <div class="mb-3">
+        <a href="{{ path('add_admin') }}" class="btn btn-success">Add Admin</a>
+        <a href="{{ path('delete_admin_form') }}" class="btn btn-danger">Delete Admin</a>
+        <a href="{{ path('invite_user') }}" class="btn btn-primary">Invite User</a>
+        <a href="{{ path('create_team') }}" class="btn btn-primary">Create Team</a>
+         <a href="{{ path('show_teams') }}" class="btn btn-info">Show Teams</a>
+
+    </div>
+
+    <h2 class="text-primary">List of Admins</h2>
+
+    {% if admin_users is not empty %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Phone Number</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for admin_user in admin_users %}
+                    <tr>
+                        <td>{{ admin_user.fullName }}</td>
+                        <td>{{ admin_user.email }}</td>
+                        <td>{{ admin_user.role }}</td>
+                        <td>{{ admin_user.phoneNumber }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No admin users found.</p>
+    {% endif %}
 {% endblock %}

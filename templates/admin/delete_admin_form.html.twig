@@ -1,0 +1,14 @@
+{# templates/admin/delete_admin_form.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Delete Admin{% endblock %}
+
+{% block body %}
+    <h1 class="text-primary">Delete Admin</h1>
+
+    {{ form_start(form) }}
+    {{ form_row(form.email) }}
+
+    <button type="submit" class="btn btn-danger">Delete Admin</button>
+    {{ form_end(form) }}
+{% endblock %}
