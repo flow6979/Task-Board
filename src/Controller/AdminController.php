@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Entity\Team;
 use App\Entity\User;
+use App\Form\AddUserToTeamType;
 use App\Form\AdminDeleteType;
 use App\Form\AdminType;
 use App\Form\InviteType;
@@ -178,7 +179,7 @@ class AdminController extends AbstractController
     }
 
     #[Route('/admin/showTeam/{id}', name: 'show_team')]
-    public function showTeam(int $id, TeamRepository $teamRepository): Response
+    public function showTeam(int $id, TeamRepository $teamRepository, UserRepository $userRepository): Response
     {
         $team = $teamRepository->find($id);
 
@@ -186,9 +187,84 @@ class AdminController extends AbstractController
             throw $this->createNotFoundException('The team does not exist');
         }
 
+        $users = $userRepository->findBy(['team' => $team]);
+        $userCount = count($users);
+
         return $this->render('admin/show_team.html.twig', [
             'team' => $team,
+            'users' => $users,
+            'userCount' => $userCount,
         ]);
+    }
+
+    #[Route('/admin/addUserToTeam', name: 'add_user_to_team')]
+    public function addUserToTeam(Request $request, EntityManagerInterface $em, UserRepository $userRepository): Response
+    {
+        $form = $this->createForm(AddUserToTeamType::class);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $formData = $form->getData();
+            $user = $formData['user'];
+            $team = $formData['team'];
+
+            $user->setTeam($team);
+            $em->persist($user);
+            $em->flush();
+
+            $this->addFlash('success', 'User added to the team successfully!');
+
+            return $this->redirectToRoute('show_team', ['id' => $team->getId()]);
+        }
+
+        return $this->render('admin/add_user_to_team.html.twig', [
+            'form' => $form->createView(),
+        ]);
+    }
+
+    #[Route('/admin/removeUserFromTeam/{teamId}/{userId}', name: 'remove_user_from_team')]
+    public function removeUserFromTeam(int $teamId, int $userId, EntityManagerInterface $em, UserRepository $userRepository, TeamRepository $teamRepository): Response
+    {
+        $user = $userRepository->find($userId);
+        $team = $teamRepository->find($teamId);
+
+        if (!$user) {
+            throw $this->createNotFoundException('User not found');
+        }
+
+        if (!$team) {
+            throw $this->createNotFoundException('Team not found');
+        }
+
+        if ($user->getTeam() !== $team) {
+            throw $this->createAccessDeniedException('User does not belong to this team');
+        }
+
+        $user->setTeam(null);
+        $em->persist($user);
+        $em->flush();
+
+        $this->addFlash('success', 'User removed from the team successfully!');
+
+        return $this->redirectToRoute('show_team', ['id' => $teamId]);
+    }
+    #[Route('/admin/updateUserRole/{teamId}/{userId}', name: 'update_user_role')]
+    public function updateUserRole(int $teamId, int $userId, EntityManagerInterface $em, UserRepository $userRepository): Response
+    {
+        $user = $userRepository->find($userId);
+
+        if (!$user) {
+            throw $this->createNotFoundException('User not found');
+        }
+
+        // Update user role to admin
+        $user->setRole('admin');
+        $em->persist($user);
+        $em->flush();
+
+        $this->addFlash('success', 'User role updated to admin successfully!');
+
+        return $this->redirectToRoute('show_team', ['id' => $teamId]);
     }
 
 }
