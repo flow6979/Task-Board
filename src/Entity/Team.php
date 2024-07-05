@@ -23,6 +23,9 @@ class Team
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $description = null;
+
     #[ORM\OneToMany(mappedBy: 'team', targetEntity: User::class)]
     private Collection $users;
 
@@ -51,6 +54,17 @@ class Team
     public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->createdAt;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): self
+    {
+        $this->description = $description;
+        return $this;
     }
 
     public function getUsers(): Collection

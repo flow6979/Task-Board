@@ -1,4 +1,3 @@
-{# templates/admin/show_teams.html.twig #}
 {% extends 'base.html.twig' %}
 
 {% block title %}All Teams{% endblock %}
@@ -31,6 +30,12 @@
                 {% endfor %}
             </tbody>
         </table>
+        <script>
+            const teams = {{ teams|json_encode()|raw }};
+            teams.forEach(team => {
+                console.log(team);
+            });
+        </script>
     {% else %}
         <p>No teams found.</p>
     {% endif %}

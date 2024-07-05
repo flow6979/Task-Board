@@ -1,7 +1,6 @@
-{# templates/emails/invite.html.twig #}
-
 <p>Hello,</p>
-<p>You have been invited as an admin. Here are your credentials:</p>
+<p>You have been invited as an user. Here are your credentials:</p>
 <p>Email: {{ email }}</p>
 <p>Password: {{ password }}</p>
-<p>Please login.</p>
+<button class="btn btn-primary" type="button">Login</button>
+{# <a href="{{ path('app_login') }}" class="btn btn-primary">Login</a> #}
