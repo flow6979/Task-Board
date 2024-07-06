@@ -5,3 +5,6 @@ It allow the users to see a list of tasks assigned to them and their team. The u
 
 1. feat: changes wit new features
 2. fix: fixing already build feature
+
+
+### Frontend repo link - [https://github.com/Akhil4264/TaskBoard-frontend](https://github.com/Akhil4264/TaskBoard-frontend)
