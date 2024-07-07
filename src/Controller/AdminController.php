@@ -1,15 +1,9 @@
 <?php
-// src/Controller/AdminController.php
 
 namespace App\Controller;
 
 use App\Entity\Team;
 use App\Entity\User;
-use App\Form\TeamType;
-use App\Form\AdminType;
-use App\Form\InviteType;
-use App\Form\AdminDeleteType;
-use App\Form\AddUserToTeamType;
 use Symfony\Component\Mime\Email;
 use App\Repository\TeamRepository;
 use App\Repository\UserRepository;
@@ -30,30 +24,127 @@ class AdminController extends AbstractController
     {
         $this->passwordHasher = $passwordHasher;
     }
-    #[Route('/admin', name: 'app_admin')]
-    public function index(UserRepository $userRepository): Response
-    {
-        $adminUser = $userRepository->findBy(['role' => 'admin']);
 
-        return $this->render('admin/index.html.twig', [
-            'admin_users' => $adminUser,
-        ]);
+    #[Route('/getAdmin', name: 'app_admin', methods: ['GET'])]
+    public function index(UserRepository $userRepository): JsonResponse
+    {
+        $adminUsers = $userRepository->findBy(['role' => 'admin']);
+        $adminUsersArray = [];
+
+        foreach ($adminUsers as $adminUser) {
+            $adminUsersArray[] = [
+                'id' => $adminUser->getId(),
+                'fullName' => $adminUser->getFullName(),
+                'email' => $adminUser->getEmail(),
+                'role' => $adminUser->getRole(),
+                'phoneNumber' => $adminUser->getPhoneNumber(),
+            ];
+        }
+
+        return new JsonResponse($adminUsersArray, Response::HTTP_OK);
     }
-    #[Route('/admin/getIndUsers', name: 'ind_user')]
-    public function getIndUsers(UserRepository $userRepository): Response
+
+    #[Route('/admin/addAdmin', name: 'add_admin', methods: ['POST'])]
+    public function addAdmin(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if (!isset($data['email']) || !isset($data['fullName']) || !isset($data['password'])) {
+            return new JsonResponse(['error' => 'Invalid input'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $admin = new User();
+        $admin->setEmail($data['email']);
+        $admin->setFullName($data['fullName']);
+        $admin->setPhoneNumber($data['phoneNumber']);
+        $plainPassword = $data['password'];
+        $hashedPassword = $this->passwordHasher->hashPassword($admin, $plainPassword);
+        $admin->setPassword($hashedPassword);
+        $admin->setRole('admin');
+
+        $em->persist($admin);
+        $em->flush();
+
+        return new JsonResponse([
+            'message' => 'Admin user added successfully!',
+            'admin' => [
+                'id' => $admin->getId(),
+                'fullName' => $admin->getFullName(),
+                'email' => $admin->getEmail(),
+                'role' => $admin->getRole(),
+                'phoneNumber' => $admin->getPhoneNumber(),
+            ]
+        ], Response::HTTP_OK);
+    }
+
+    #[Route('/admin/deleteAdmin', name: 'delete_admin_form', methods: ['DELETE'])]
+    public function deleteAdminForm(Request $request, EntityManagerInterface $em, UserRepository $userRepository): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if (!isset($data['email'])) {
+            return new JsonResponse(['error' => 'Invalid input'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $email = $data['email'];
+        $user = $userRepository->findOneBy(['email' => $email, 'role' => 'admin']);
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Admin user not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $em->remove($user);
+        $em->flush();
+
+        return new JsonResponse(['message' => 'Admin user deleted successfully.'], Response::HTTP_OK);
+    }
+
+    #[Route('/admin/updateAdmin/{userId}', name: 'update_admin', methods: ['PUT'])]
+    public function updateAdmin(Request $request, int $userId, EntityManagerInterface $em, UserRepository $userRepository, UserPasswordHasherInterface $passwordHasher): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $admin = $userRepository->find($userId);
+
+        if (!$admin || $admin->getRole() !== 'admin') {
+            return new JsonResponse(['error' => 'Admin user not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (isset($data['fullName'])) {
+            $admin->setFullName($data['fullName']);
+        }
+        if (isset($data['email'])) {
+            $admin->setEmail($data['email']);
+        }
+        if (isset($data['password'])) {
+            $plainPassword = $data['password'];
+            $hashedPassword = $passwordHasher->hashPassword($admin, $plainPassword);
+            $admin->setPassword($hashedPassword);
+        }
+        if (isset($data['phoneNumber'])) {
+            $admin->setPhoneNumber($data['phoneNumber']);
+        }
+
+        $em->persist($admin);
+        $em->flush();
+
+        $responseData = [
+            'message' => 'Admin user updated successfully!',
+            'admin' => [
+                'id' => $admin->getId(),
+                'fullName' => $admin->getFullName(),
+                'email' => $admin->getEmail(),
+                'role' => $admin->getRole(),
+                'phoneNumber' => $admin->getPhoneNumber(),
+            ]
+        ];
+
+        return new JsonResponse($responseData, Response::HTTP_OK);
+    }
+
+    #[Route('/admin/getIndUsers', name: 'ind_user', methods: ['GET'])]
+    public function getIndUsers(UserRepository $userRepository): JsonResponse
     {
         $indUsers = $userRepository->findBy(['team' => null]);
         $usersArray = [];
         foreach ($indUsers as $indUser) {
-            // $users = $userRepository->findBy(['team' => $team]);
-            // $userCount = count($users);
-            //             id
-            // | team_id
-            // | email        | 
-            // | password     | 
-            // | full_name    | 
-            // | role         | 
-            // | phone_number
             $usersArray[] = [
                 'id' => $indUser->getId(),
                 'name' => $indUser->getFullName(),
@@ -63,120 +154,11 @@ class AdminController extends AbstractController
             ];
         }
 
-        // Uncomment the following line if you want to return JSON response
-        return new Response(json_encode($usersArray), 200, ['Content-Type' => 'application/json']);
+        return new JsonResponse($usersArray, Response::HTTP_OK);
     }
-
-
-    #[Route('/admin/addAdmin', name: 'add_admin')]
-    public function addAdmin(Request $request, EntityManagerInterface $em): Response
-    {
-        $admin = new User();
-        $form = $this->createForm(AdminType::class, $admin);
-
-        $form->handleRequest($request);
-        if ($form->isSubmitted() && $form->isValid()) {
-            // Retrieve the plain password from the form data
-            $plainPassword = $form->get('password')->getData();
-
-            // Hash the password
-            $hashedPassword = $this->passwordHasher->hashPassword($admin, $plainPassword);
-
-            // Set the hashed password to the User entity
-            $admin->setPassword($hashedPassword);
-            $admin->setRole('admin');
-
-            $em->persist($admin);
-            $em->flush();
-
-            return $this->redirectToRoute('app_admin');
-        }
-
-        return $this->render('admin/add.html.twig', [
-            'form' => $form->createView(),
-        ]);
-    }
-
-
-    #[Route('/admin/deleteAdmin', name: 'delete_admin_form')]
-    public function deleteAdminForm(Request $request, EntityManagerInterface $em, UserRepository $userRepository): Response
-    {
-        $form = $this->createForm(AdminDeleteType::class);
-
-        $form->handleRequest($request);
-        if ($form->isSubmitted() && $form->isValid()) {
-            $formData = $form->getData();
-            $email = $formData['email'];
-
-            // Find admin user by email
-            $user = $userRepository->findOneBy(['email' => $email, 'role' => 'admin']);
-
-            if (!$user) {
-                $this->addFlash('error', 'Admin user not found.');
-            } else {
-                // Delete admin user
-                $em->remove($user);
-                $em->flush();
-
-                $this->addFlash('success', 'Admin user deleted successfully.');
-            }
-
-            return $this->redirectToRoute('app_admin');
-        }
-
-        return $this->render('admin/delete_admin_form.html.twig', [
-            'form' => $form->createView(),
-        ]);
-    }
-
-    // #[Route('/admin/inviteUser', name: 'invite_user')]
-    // public function invite(Request $request, EntityManagerInterface $em, MailerInterface $mailer): Response
-    // {
-    //     $form = $this->createForm(InviteType::class);
-    //     $form->handleRequest($request);
-
-    //     if ($form->isSubmitted() && $form->isValid()) {
-    //         $email = $form->get('email')->getData();
-    //         $fullName = $form->get('fullName')->getData();
-
-    //         $dummyPassword = bin2hex(random_bytes(4));
-    //         $user = new User();
-    //         // Hash the password
-    //         $hashedPassword = $this->passwordHasher->hashPassword($user, $dummyPassword);
-    //         $user->setPassword($hashedPassword);
-
-
-    //         $user->setEmail($email);
-    //         $user->setFullName($fullName);
-
-    //         $user->setPassword($hashedPassword);
-    //         $user->setRole('user');
-    //         $em->persist($user);
-    //         $em->flush();
-
-    //         $emailMessage = (new Email())
-    //             ->from('vaishnavi22kahar@gmail.com')
-    //             ->to($email)
-    //             ->subject('You are invited as an user')
-    //             ->html($this->renderView('emails/invite.html.twig', [
-    //                 'email' => $email,
-    //                 'password' => $dummyPassword,
-    //             ]));
-
-    //         $mailer->send($emailMessage);
-
-    //         $this->addFlash('success', 'Invitation sent successfully!');
-
-    //         return $this->redirectToRoute('app_admin');
-    //     }
-
-    //     return $this->render('admin/invite.html.twig', [
-    //         'form' => $form->createView(),
-    //     ]);
-    // }
 
     #[Route('/admin/inviteUser', name: 'invite_user', methods: ['POST'])]
-    public function invite(Request $request, EntityManagerInterface $em, MailerInterface $mailer, UserPasswordHasherInterface $passwordHasher): Response
+    public function invite(Request $request, EntityManagerInterface $em, MailerInterface $mailer, UserPasswordHasherInterface $passwordHasher, UserRepository $userRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
@@ -184,10 +166,14 @@ class AdminController extends AbstractController
             $email = $data['email'];
             $fullName = $data['fullName'];
 
+            $existingUser = $userRepository->findOneBy(['email' => $email]);
+            if ($existingUser) {
+                return new JsonResponse(['error' => 'Email already exists'], Response::HTTP_BAD_REQUEST);
+            }
+
             $dummyPassword = bin2hex(random_bytes(4));
             $user = new User();
 
-            // Hash the password
             $hashedPassword = $passwordHasher->hashPassword($user, $dummyPassword);
             $user->setPassword($hashedPassword);
             $user->setEmail($email);
@@ -198,7 +184,7 @@ class AdminController extends AbstractController
             $em->flush();
 
             $emailMessage = (new Email())
-                ->from('vaishnavi22kahar@gmail.com')
+                ->from('taskboard.08@gmail.com')
                 ->to($email)
                 ->subject('You are invited as an user')
                 ->html($this->renderView('emails/invite.html.twig', [
@@ -223,26 +209,32 @@ class AdminController extends AbstractController
     }
 
     #[Route('/admin/createTeam', name: 'create_team', methods: ['POST'])]
-    public function createTeam(Request $request, EntityManagerInterface $em, TeamRepository $teamRepository): Response
+    public function createTeam(Request $request, EntityManagerInterface $em, TeamRepository $teamRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
         if (isset($data['teamName']) && isset($data['teamDescription'])) {
             $existingTeam = $teamRepository->findOneBy(['name' => $data['teamName']]);
             if ($existingTeam) {
-                return new JsonResponse(['error' => 'A team with this name already exists.'], Response::HTTP_BAD_REQUEST);
+                return new JsonResponse([
+                    'error' => 'A team with this name already exists.',
+                    'team' => [
+                        'id' => $existingTeam->getId(),
+                        'name' => $existingTeam->getName(),
+                        'description' => $existingTeam->getDescription(),
+                        'createdAt' => $existingTeam->getCreatedAt()
+                    ]
+                ], Response::HTTP_BAD_REQUEST);
             } else {
                 try {
                     $team = new Team();
-
                     $team->setName($data['teamName']);
                     $team->setDescription($data['teamDescription']);
 
                     $em->persist($team);
                     $em->flush();
 
-                    // $this->addFlash('success', 'Team created successfully!');
                     return new JsonResponse([
-                        'message' => 'Invitation sent successfully!',
+                        'message' => 'Team created successfully!',
                         'team' => [
                             'id' => $team->getId(),
                             'name' => $team->getName(),
@@ -251,7 +243,7 @@ class AdminController extends AbstractController
                         ]
                     ], Response::HTTP_OK);
                 } catch (\Exception $e) {
-                    return new JsonResponse(['error' => 'error creating team'], Response::HTTP_BAD_REQUEST);
+                    return new JsonResponse(['error' => 'Error creating team'], Response::HTTP_BAD_REQUEST);
                 }
             }
         } else {
@@ -260,8 +252,8 @@ class AdminController extends AbstractController
     }
 
 
-    #[Route('/admin/getTeams', name: 'show_teams')]
-    public function showTeams(TeamRepository $teamRepository, UserRepository $userRepository): Response
+    #[Route('/admin/getTeams', name: 'show_teams', methods: ['GET'])]
+    public function showTeams(TeamRepository $teamRepository, UserRepository $userRepository): JsonResponse
     {
         $teams = $teamRepository->findAll();
         $teamsArray = [];
@@ -278,13 +270,10 @@ class AdminController extends AbstractController
             ];
         }
 
-        return new Response(json_encode($teamsArray), 200, ['Content-Type' => 'application/json']);
+        return new JsonResponse($teamsArray, Response::HTTP_OK);
     }
 
-
-
-
-    #[Route('/admin/showTeam/{id}', name: 'show_team')]
+    #[Route('/admin/getTeam/{id}', name: 'show_team', methods: ['GET'])]
     public function showTeam(int $id, TeamRepository $teamRepository, UserRepository $userRepository): JsonResponse
     {
         $team = $teamRepository->find($id);
@@ -296,7 +285,6 @@ class AdminController extends AbstractController
         $users = $userRepository->findBy(['team' => $team->getId()]);
         $userCount = count($users);
 
-        // Serialize data to array
         $data = [
             'team' => [
                 'id' => $team->getId(),
@@ -316,24 +304,78 @@ class AdminController extends AbstractController
             ];
         }
 
-        // Return JSON response
         return new JsonResponse($data);
     }
 
 
-    #[Route('/admin/addUserToTeam/{team_id}', name: 'add_user_to_team',methods:['POST'])]
+    #[Route('/admin/deleteTeam/{teamId}', name: 'delete_team', methods: ['DELETE'])]
+    public function deleteTeam(int $teamId, EntityManagerInterface $em, TeamRepository $teamRepository): JsonResponse
+    {
+        $team = $teamRepository->find($teamId);
+
+        if (!$team) {
+            return new JsonResponse(['error' => 'Team not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            foreach ($team->getUsers() as $user) {
+                $user->setTeam(null);
+            }
+
+            $em->remove($team);
+            $em->flush();
+
+            return new JsonResponse(['message' => 'Team deleted successfully.'], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            error_log('Failed to delete team with ID ' . $teamId . ': ' . $e->getMessage());
+
+            return new JsonResponse(['error' => 'Failed to delete team.'], Response::HTTP_BAD_REQUEST);
+        }
+    }
+
+    #[Route('/admin/updateTeam/{teamId}', name: 'update_team', methods: ['PUT'])]
+    public function updateTeam(Request $request, int $teamId, EntityManagerInterface $em, TeamRepository $teamRepository): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $team = $teamRepository->find($teamId);
+
+        if (!$team) {
+            return new JsonResponse(['error' => 'Team not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (isset($data['teamName'])) {
+            $team->setName($data['teamName']);
+        }
+        if (isset($data['teamDescription'])) {
+            $team->setDescription($data['teamDescription']);
+        }
+
+        $em->persist($team);
+        $em->flush();
+
+
+        $responseData = [
+            'message' => 'Team updated successfully!',
+            'team' => [
+                'id' => $team->getId(),
+                'name' => $team->getName(),
+                'description' => $team->getDescription(),
+                'createdAt' => $team->getCreatedAt(),
+            ]
+        ];
+
+        return new JsonResponse($responseData, Response::HTTP_OK);
+    }
+
+
+    #[Route('/admin/addUserToTeam/{team_id}', name: 'add_user_to_team', methods: ['POST'])]
     public function addUserToTeam(Request $request, EntityManagerInterface $em, UserRepository $userRepository, int $team_id): JsonResponse
     {
-        // Parse JSON data from request body
         $data = json_decode($request->getContent(), true);
 
-        //Validate data format (ensure user_ids array exists)
         if (!isset($data['user_ids']) || !is_array($data['user_ids'])) {
             return new JsonResponse(['error' => 'Invalid request format. Expected user_ids array.'], JsonResponse::HTTP_BAD_REQUEST);
         }
-
-        // // Fetch the team object (assuming team is identified elsewhere in the request)
-        // $teamId = $data['team_id']; // Assuming 'team_id' is part of the request data
         $team = $em->getRepository(Team::class)->find($team_id);
 
         if (!$team) {
@@ -341,8 +383,8 @@ class AdminController extends AbstractController
         }
         foreach ($data['user_ids'] as $userId) {
             $user = $userRepository->find($userId);
-    
-            if ($user && !$user->getTeam()) { // Check if user exists and is not already in a team
+
+            if ($user && !$user->getTeam()) {
                 $user->setTeam($team);
                 $em->persist($user);
             }
@@ -350,12 +392,11 @@ class AdminController extends AbstractController
 
         $em->flush();
 
-        return new JsonResponse(['message'=>'Users added succesfully to team']);
+        return new JsonResponse(['message' => 'Users added successfully to team']);
     }
 
-
-    #[Route('/admin/removeUserFromTeam/{teamId}/{userId}', name: 'remove_user_from_team')]
-    public function removeUserFromTeam(int $teamId, int $userId, EntityManagerInterface $em, UserRepository $userRepository, TeamRepository $teamRepository): Response
+    #[Route('/admin/removeUserFromTeam/{teamId}/{userId}', name: 'remove_user_from_team', methods: ['POST'])]
+    public function removeUserFromTeam(int $teamId, int $userId, EntityManagerInterface $em, UserRepository $userRepository, TeamRepository $teamRepository): JsonResponse
     {
         $user = $userRepository->find($userId);
         $team = $teamRepository->find($teamId);
@@ -376,12 +417,11 @@ class AdminController extends AbstractController
         $em->persist($user);
         $em->flush();
 
-
-        return new JsonResponse(['message'=>'User removed from the team successfully!']);
+        return new JsonResponse(['message' => 'User removed from the team successfully!']);
     }
-    
-    #[Route('/admin/toggleRole/{userId}', name: 'update_user_role')]
-    public function updateUserRole( int $userId, EntityManagerInterface $em, UserRepository $userRepository): Response
+
+    #[Route('/admin/toggleRole/{userId}', name: 'update_user_role', methods: ['POST'])]
+    public function updateUserRole(int $userId, EntityManagerInterface $em, UserRepository $userRepository): JsonResponse
     {
         $user = $userRepository->find($userId);
 
@@ -389,16 +429,103 @@ class AdminController extends AbstractController
             throw $this->createNotFoundException('User not found');
         }
 
-        // Update user role to admin
-        if($user->getRole()=='user'){
+        // Toggle user role
+        if ($user->getRole() == 'user') {
             $user->setRole('admin');
-        }else{
+        } else {
             $user->setRole('user');
         }
-        
+
         $em->persist($user);
         $em->flush();
 
-        return new JsonResponse(['message'=>'User role toggled successfully!']);
+        return new JsonResponse(['message' => 'User role toggled successfully!']);
+    }
+    #[Route('/admin/changeUserTeam/{userId}', name: 'change_user_team', methods: ['POST'])]
+    public function changeUserTeam(Request $request, EntityManagerInterface $em, UserRepository $userRepository, int $userId): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['teamId'])) {
+            return new JsonResponse(['error' => 'Team ID is required.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $teamId = $data['teamId'];
+        $team = $em->getRepository(Team::class)->find($teamId);
+        $user = $userRepository->find($userId);
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (!$team) {
+            return new JsonResponse(['error' => 'Team not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            // Remove user from current team (if any)
+            $currentUserTeam = $user->getTeam();
+            if ($currentUserTeam) {
+                $currentUserTeam->removeUser($user);
+            }
+
+            // Add user to the new team
+            $user->setTeam($team);
+            $team->addUser($user);
+
+            $em->persist($user);
+            $em->persist($team);
+            $em->flush();
+
+            return new JsonResponse(['message' => 'User team updated successfully.'], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            return new JsonResponse(['error' => 'Failed to update user team.'], Response::HTTP_BAD_REQUEST);
+        }
+    }
+
+    #[Route('/admin/getUserTeamMember/{userId}', name: 'get_user_team_member', methods: ['GET'])]
+    public function getUserTeamMember(int $userId, UserRepository $userRepository): JsonResponse
+    {
+        $user = $userRepository->find($userId);
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $team = $user->getTeam();
+
+        if (!$team) {
+            return new JsonResponse(['error' => 'User is not part of any team.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $members = [];
+        foreach ($team->getUsers() as $member) {
+            // Exclude the user themselves from the list of members
+            if ($member->getId() !== $userId) {
+                $members[] = [
+                    'id' => $member->getId(),
+                    'email' => $member->getEmail(),
+                    'name' => $member->getFullName(),
+                    'role' => $member->getRole(),
+                ];
+            }
+        }
+
+        $response = [
+            'user' => [
+                'id' => $user->getId(),
+                'name' =>  $user->getName(),
+                'email' => $user->getEmail(),
+                
+            ],
+            'team' => [
+                'id' => $team->getId(),
+                'name' => $team->getName(),
+                'description' => $team->getDescription(),
+            ],
+            'members' => $members,
+        ];
+
+        return new JsonResponse($response, Response::HTTP_OK);
     }
 }
