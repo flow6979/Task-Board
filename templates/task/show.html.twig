@@ -1,0 +1,61 @@
+{# templates/task/show.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Task Details{% endblock %}
+
+{% block body %}
+    <h1>Task Details</h1>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <td>{{ task.id }}</td>
+        </tr>
+        <tr>
+            <th>Title</th>
+            <td>{{ task.title }}</td>
+        </tr>
+        <tr>
+            <th>Description</th>
+            <td>{{ task.description }}</td>
+        </tr>
+        <tr>
+            <th>Priority</th>
+            <td>{{ task.priority }}</td>
+        </tr>
+        <tr>
+            <th>Planned Date</th>
+            <td>{{ task.plannedDate ? task.plannedDate|date('Y-m-d') : 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Status</th>
+            <td>{{ task.status }}</td>
+        </tr>
+        <tr>
+            <th>Assignee</th>
+            <td>{{ task.assignee ? task.assignee.fullName : 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Reporter</th>
+            <td>{{ task.reporter ? task.reporter.fullName : 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Team</th>
+            <td>{{ task.team ? task.team.name : 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Created At</th>
+            <td>{{ task.createdAt ? task.createdAt|date('Y-m-d H:i:s') : 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Updated At</th>
+            <td>{{ task.updatedAt ? task.updatedAt|date('Y-m-d H:i:s') : 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Attachments</th>
+            <td>{{ task.attachments|json_encode }}</td>
+        </tr>
+    </table>
+
+    <a href="{{ path('task_index') }}">Back to Task List</a>
+{% endblock %}

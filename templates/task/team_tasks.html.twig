@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Team Tasks{% endblock %}
+
+{% block body %}
+<h1>Tasks for Team: {{ team.name }}</h1>
+
+{% for taskSet in tasks %}
+    <h2>User: {{ taskSet.user.fullName }}</h2>
+    <ul>
+        {% for task in taskSet.tasks %}
+            <li>{{ task.title }} - {{ task.status }}</li>
+        {% endfor %}
+    </ul>
+{% endfor %}
+{% endblock %}

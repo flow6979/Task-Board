@@ -1,18 +1,31 @@
 <?php
-
 namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Annotation\Route;
+use App\Repository\UserRepository;
+use Symfony\Bundle\SecurityBundle\Security;;
 
 class UserPageController extends AbstractController
 {
-    #[Route('/user', name: 'app_user_page')]
+    private $userRepository;
+    private $security;
+
+    public function __construct(UserRepository $userRepository, Security $security)
+    {
+        $this->userRepository = $userRepository;
+        $this->security = $security;
+    }
+
+    #[Route('/users', name: 'user_index', methods: ['GET'])]
     public function index(): Response
     {
+        $users = $this->userRepository->findAll();
+
         return $this->render('user_page/index.html.twig', [
-            'controller_name' => 'UserPageController',
+            'users' => $users,
         ]);
     }
 }
+
