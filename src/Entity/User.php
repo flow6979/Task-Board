@@ -50,6 +50,19 @@ class User implements PasswordAuthenticatedUserInterface
 
         return $this;
     }
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;
+    }
+    public function getRoles(): array
+    {
+        $roles = $this->role;
+        // guarantee every user at least has ROLE_USER
+        $roles[] = 'ROLE_USER';
+
+        return array_unique($roles);
+    }
+
 
     public function getPassword(): ?string
     {
@@ -111,7 +124,6 @@ class User implements PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    // Implement UserInterface methods
     public function getUsername(): string
     {
         return $this->email;
@@ -124,12 +136,7 @@ class User implements PasswordAuthenticatedUserInterface
 
     public function eraseCredentials(): void
     {
-        // If you store any temporary, sensitive data on the user, clear it here
-        // $this->plainPassword = null;
+        
     }
 
-    public function getRoles(): array
-    {
-        return [$this->role];
-    }
 }

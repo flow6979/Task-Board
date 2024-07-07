@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}User Tasks{% endblock %}
+
+{% block body %}
+<h1>Tasks for {{ user.fullName }}</h1>
+<p>Email: {{ user.email }}</p>
+<p>Role: {{ user.role }}</p>
+
+<h2>Assigned Tasks</h2>
+<ul>
+    {% for task in tasks %}
+        <li>{{ task.title }} - {{ task.status }}</li>
+    {% endfor %}
+</ul>
+
+{% if teamTasks is not empty %}
+    <h2>Team Tasks</h2>
+    <ul>
+        {% for task in teamTasks %}
+            <li>{{ task.title }} - {{ task.status }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+{% endblock %}
