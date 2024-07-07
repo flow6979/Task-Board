@@ -55,6 +55,7 @@ class AdminController extends AbstractController
         $admin = new User();
         $admin->setEmail($data['email']);
         $admin->setFullName($data['fullName']);
+        $admin->setPhoneNumber($data['phoneNumber']);
         $plainPassword = $data['password'];
         $hashedPassword = $this->passwordHasher->hashPassword($admin, $plainPassword);
         $admin->setPassword($hashedPassword);
@@ -75,7 +76,7 @@ class AdminController extends AbstractController
         ], Response::HTTP_OK);
     }
 
-    #[Route('/admin/deleteAdmin', name: 'delete_admin_form', methods: ['POST'])]
+    #[Route('/admin/deleteAdmin', name: 'delete_admin_form', methods: ['DELETE'])]
     public function deleteAdminForm(Request $request, EntityManagerInterface $em, UserRepository $userRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -94,6 +95,48 @@ class AdminController extends AbstractController
         $em->flush();
 
         return new JsonResponse(['message' => 'Admin user deleted successfully.'], Response::HTTP_OK);
+    }
+
+    #[Route('/admin/updateAdmin/{userId}', name: 'update_admin', methods: ['PUT'])]
+    public function updateAdmin(Request $request, int $userId, EntityManagerInterface $em, UserRepository $userRepository, UserPasswordHasherInterface $passwordHasher): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $admin = $userRepository->find($userId);
+
+        if (!$admin || $admin->getRole() !== 'admin') {
+            return new JsonResponse(['error' => 'Admin user not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (isset($data['fullName'])) {
+            $admin->setFullName($data['fullName']);
+        }
+        if (isset($data['email'])) {
+            $admin->setEmail($data['email']);
+        }
+        if (isset($data['password'])) {
+            $plainPassword = $data['password'];
+            $hashedPassword = $passwordHasher->hashPassword($admin, $plainPassword);
+            $admin->setPassword($hashedPassword);
+        }
+        if (isset($data['phoneNumber'])) {
+            $admin->setPhoneNumber($data['phoneNumber']);
+        }
+
+        $em->persist($admin);
+        $em->flush();
+
+        $responseData = [
+            'message' => 'Admin user updated successfully!',
+            'admin' => [
+                'id' => $admin->getId(),
+                'fullName' => $admin->getFullName(),
+                'email' => $admin->getEmail(),
+                'role' => $admin->getRole(),
+                'phoneNumber' => $admin->getPhoneNumber(),
+            ]
+        ];
+
+        return new JsonResponse($responseData, Response::HTTP_OK);
     }
 
     #[Route('/admin/getIndUsers', name: 'ind_user', methods: ['GET'])]
@@ -276,7 +319,7 @@ class AdminController extends AbstractController
 
         try {
             foreach ($team->getUsers() as $user) {
-                $user->setTeam(null); 
+                $user->setTeam(null);
             }
 
             $em->remove($team);
@@ -288,6 +331,40 @@ class AdminController extends AbstractController
 
             return new JsonResponse(['error' => 'Failed to delete team.'], Response::HTTP_BAD_REQUEST);
         }
+    }
+
+    #[Route('/admin/updateTeam/{teamId}', name: 'update_team', methods: ['PUT'])]
+    public function updateTeam(Request $request, int $teamId, EntityManagerInterface $em, TeamRepository $teamRepository): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $team = $teamRepository->find($teamId);
+
+        if (!$team) {
+            return new JsonResponse(['error' => 'Team not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (isset($data['teamName'])) {
+            $team->setName($data['teamName']);
+        }
+        if (isset($data['teamDescription'])) {
+            $team->setDescription($data['teamDescription']);
+        }
+
+        $em->persist($team);
+        $em->flush();
+
+
+        $responseData = [
+            'message' => 'Team updated successfully!',
+            'team' => [
+                'id' => $team->getId(),
+                'name' => $team->getName(),
+                'description' => $team->getDescription(),
+                'createdAt' => $team->getCreatedAt(),
+            ]
+        ];
+
+        return new JsonResponse($responseData, Response::HTTP_OK);
     }
 
 
@@ -435,6 +512,12 @@ class AdminController extends AbstractController
         }
 
         $response = [
+            'user' => [
+                'id' => $user->getId(),
+                'name' =>  $user->getName(),
+                'email' => $user->getEmail(),
+                
+            ],
             'team' => [
                 'id' => $team->getId(),
                 'name' => $team->getName(),
