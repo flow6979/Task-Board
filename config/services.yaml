@@ -10,6 +10,12 @@ services:
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        
+    app.jwt_authentication_success_handler:
+        class: App\Security\JWTAuthenticationSuccessHandler
+        arguments: ['@lexik_jwt_authentication.jwt_manager','@logger']
+        tags:
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_authentication_success, method: onAuthenticationSuccess }
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

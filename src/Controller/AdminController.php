@@ -25,8 +25,14 @@ class AdminController extends AbstractController
         $this->passwordHasher = $passwordHasher;
     }
 
+    #[Route('/admin', name: 'admin_dashboard')]
+    public function index(): Response
+    {
+        return $this->render('admin_page/index.html.twig');
+    }
+
     #[Route('/getAdmin', name: 'app_admin', methods: ['GET'])]
-    public function index(UserRepository $userRepository): JsonResponse
+    public function getAdmin(UserRepository $userRepository): JsonResponse
     {
         $adminUsers = $userRepository->findBy(['role' => 'admin']);
         $adminUsersArray = [];
@@ -527,5 +533,6 @@ class AdminController extends AbstractController
         ];
 
         return new JsonResponse($response, Response::HTTP_OK);
+
     }
 }

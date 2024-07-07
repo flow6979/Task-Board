@@ -21,24 +21,30 @@ class UserController extends AbstractController
         $this->passwordHasher = $passwordHasher;
     }
 
-    #[Route('/user', name: 'get_all_users', methods: ['GET'])]
-    public function getAllUsers(UserRepository $userRepository): JsonResponse
+    #[Route('/user', name: 'user_dashboard')]
+    public function index(): Response
     {
-        $users = $userRepository->findAll();
-        $usersArray = [];
-
-        foreach ($users as $user) {
-            $usersArray[] = [
-                'id' => $user->getId(),
-                'name' => $user->getFullName(),
-                'email' => $user->getEmail(),
-                'role' => $user->getRole(),
-                'phoneNumber' => $user->getPhoneNumber(),
-            ];
-        }
-
-        return new JsonResponse($usersArray, Response::HTTP_OK);
+        return $this->render('user_page/index.html.twig');
     }
+
+    // #[Route('/user', name: 'get_all_users', methods: ['GET'])]
+    // public function getAllUsers(UserRepository $userRepository): JsonResponse
+    // {
+    //     $users = $userRepository->findAll();
+    //     $usersArray = [];
+
+    //     foreach ($users as $user) {
+    //         $usersArray[] = [
+    //             'id' => $user->getId(),
+    //             'name' => $user->getFullName(),
+    //             'email' => $user->getEmail(),
+    //             'role' => $user->getRole(),
+    //             'phoneNumber' => $user->getPhoneNumber(),
+    //         ];
+    //     }
+
+    //     return new JsonResponse($usersArray, Response::HTTP_OK);
+    // }
 
     #[Route('/getUser/{id}', name: 'get_user_by_id', methods: ['GET'])]
     public function getUserById(int $id, UserRepository $userRepository): JsonResponse
@@ -176,5 +182,6 @@ class UserController extends AbstractController
         $em->flush();
 
         return new JsonResponse(['message' => 'User deleted successfully.'], Response::HTTP_OK);
+
     }
 }
