@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Controller;
 
 use App\Entity\User;
@@ -15,7 +14,6 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 class UserController extends AbstractController
 {
     private $passwordHasher;
-
     public function __construct(UserPasswordHasherInterface $passwordHasher)
     {
         $this->passwordHasher = $passwordHasher;
@@ -27,24 +25,23 @@ class UserController extends AbstractController
         return $this->render('user_page/index.html.twig');
     }
 
-    // #[Route('/user', name: 'get_all_users', methods: ['GET'])]
-    // public function getAllUsers(UserRepository $userRepository): JsonResponse
-    // {
-    //     $users = $userRepository->findAll();
-    //     $usersArray = [];
+    public function getAllUsers(UserRepository $userRepository): JsonResponse
+    {
+        $users = $userRepository->findAll();
+        $usersArray = [];
 
-    //     foreach ($users as $user) {
-    //         $usersArray[] = [
-    //             'id' => $user->getId(),
-    //             'name' => $user->getFullName(),
-    //             'email' => $user->getEmail(),
-    //             'role' => $user->getRole(),
-    //             'phoneNumber' => $user->getPhoneNumber(),
-    //         ];
-    //     }
+        foreach ($users as $user) {
+            $usersArray[] = [
+                'id' => $user->getId(),
+                'name' => $user->getFullName(),
+                'email' => $user->getEmail(),
+                'role' => $user->getRoles(),
+                'phoneNumber' => $user->getPhoneNumber(),
+            ];
+        }
 
-    //     return new JsonResponse($usersArray, Response::HTTP_OK);
-    // }
+        return new JsonResponse($usersArray, Response::HTTP_OK);
+    }
 
     #[Route('/getUser/{id}', name: 'get_user_by_id', methods: ['GET'])]
     public function getUserById(int $id, UserRepository $userRepository): JsonResponse
@@ -83,7 +80,7 @@ class UserController extends AbstractController
             'id' => $user->getId(),
             'name' => $user->getFullName(),
             'email' => $user->getEmail(),
-            'role' => $user->getRole(),
+            'role' => $user->getRoles(),
             'phoneNumber' => $user->getPhoneNumber(),
         ];
 
@@ -112,7 +109,7 @@ class UserController extends AbstractController
         $plainPassword = $data['password'];
         $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
         $user->setPassword($hashedPassword);
-        $user->setRole('user');
+        $user->setRoles(['ROLE_USER']);
 
         $em->persist($user);
         $em->flush();
@@ -123,7 +120,7 @@ class UserController extends AbstractController
                 'id' => $user->getId(),
                 'fullName' => $user->getFullName(),
                 'email' => $user->getEmail(),
-                'role' => $user->getRole(),
+                'role' => $user->getRoles(),
                 'phoneNumber' => $user->getPhoneNumber(),
             ]
         ], Response::HTTP_CREATED);
@@ -163,7 +160,7 @@ class UserController extends AbstractController
                 'id' => $user->getId(),
                 'fullName' => $user->getFullName(),
                 'email' => $user->getEmail(),
-                'role' => $user->getRole(),
+                'role' => $user->getRoles(),
                 'phoneNumber' => $user->getPhoneNumber(),
             ]
         ], Response::HTTP_OK);
@@ -182,6 +179,53 @@ class UserController extends AbstractController
         $em->flush();
 
         return new JsonResponse(['message' => 'User deleted successfully.'], Response::HTTP_OK);
-
     }
+
+
+    #[Route('/admin/getUserTeamMember/{userId}', name: 'get_user_team_member', methods: ['GET'])]
+    public function getUserTeamMember(int $userId, UserRepository $userRepository): JsonResponse
+    {
+        $user = $userRepository->find($userId);
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $team = $user->getTeam();
+
+        if (!$team) {
+            return new JsonResponse(['error' => 'User is not part of any team.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $members = [];
+        foreach ($team->getUsers() as $member) {
+            // Exclude the user themselves from the list of members
+            if ($member->getId() !== $userId) {
+                $members[] = [
+                    'id' => $member->getId(),
+                    'email' => $member->getEmail(),
+                    'name' => $member->getFullName(),
+                    'role' => $member->getRoles(),
+                ];
+            }
+        }
+
+        $response = [
+            'user' => [
+                'id' => $user->getId(),
+                'name' =>  $user->getFullName(),
+                'email' => $user->getEmail(),
+                
+            ],
+            'team' => [
+                'id' => $team->getId(),
+                'name' => $team->getName(),
+                'description' => $team->getDescription(),
+            ],
+            'members' => $members,
+        ];
+
+        return new JsonResponse($response, Response::HTTP_OK);
+    }
+    
 }

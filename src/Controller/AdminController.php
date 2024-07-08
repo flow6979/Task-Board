@@ -15,10 +15,14 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Bundle\SecurityBundle\Security as SecurityBundleSecurity;
+
 
 class AdminController extends AbstractController
 {
     private $passwordHasher;
+    private SecurityBundleSecurity $security;
 
     public function __construct(UserPasswordHasherInterface $passwordHasher)
     {
@@ -26,15 +30,9 @@ class AdminController extends AbstractController
     }
 
     #[Route('/admin', name: 'admin_dashboard')]
-    public function index(): Response
+    public function index(UserRepository $userRepository): JsonResponse
     {
-        return $this->render('admin_page/index.html.twig');
-    }
-
-    #[Route('/getAdmin', name: 'app_admin', methods: ['GET'])]
-    public function getAdmin(UserRepository $userRepository): JsonResponse
-    {
-        $adminUsers = $userRepository->findBy(['role' => 'admin']);
+        $adminUsers = $userRepository->findBy(['role' => 'ROLE_ADMIN']);
         $adminUsersArray = [];
 
         foreach ($adminUsers as $adminUser) {
@@ -42,7 +40,7 @@ class AdminController extends AbstractController
                 'id' => $adminUser->getId(),
                 'fullName' => $adminUser->getFullName(),
                 'email' => $adminUser->getEmail(),
-                'role' => $adminUser->getRole(),
+                'role' => $adminUser->getRoles(),
                 'phoneNumber' => $adminUser->getPhoneNumber(),
             ];
         }
@@ -50,9 +48,18 @@ class AdminController extends AbstractController
         return new JsonResponse($adminUsersArray, Response::HTTP_OK);
     }
 
+
+
     #[Route('/admin/addAdmin', name: 'add_admin', methods: ['POST'])]
     public function addAdmin(Request $request, EntityManagerInterface $em): JsonResponse
     {
+
+
+        if (!$this->security->isGranted('ROLE_ADMIN')) {
+            throw new AccessDeniedException('Access denied.');
+        }
+
+
         $data = json_decode($request->getContent(), true);
         if (!isset($data['email']) || !isset($data['fullName']) || !isset($data['password'])) {
             return new JsonResponse(['error' => 'Invalid input'], Response::HTTP_BAD_REQUEST);
@@ -65,7 +72,7 @@ class AdminController extends AbstractController
         $plainPassword = $data['password'];
         $hashedPassword = $this->passwordHasher->hashPassword($admin, $plainPassword);
         $admin->setPassword($hashedPassword);
-        $admin->setRole('admin');
+        $admin->setRoles(['ROLE_ADMIN']);
 
         $em->persist($admin);
         $em->flush();
@@ -76,7 +83,7 @@ class AdminController extends AbstractController
                 'id' => $admin->getId(),
                 'fullName' => $admin->getFullName(),
                 'email' => $admin->getEmail(),
-                'role' => $admin->getRole(),
+                'role' => $admin->getRoles(),
                 'phoneNumber' => $admin->getPhoneNumber(),
             ]
         ], Response::HTTP_OK);
@@ -109,7 +116,7 @@ class AdminController extends AbstractController
         $data = json_decode($request->getContent(), true);
         $admin = $userRepository->find($userId);
 
-        if (!$admin || $admin->getRole() !== 'admin') {
+        if (!$admin ||!in_array('ROLE_ADMIN', $admin->getRoles())) {
             return new JsonResponse(['error' => 'Admin user not found.'], Response::HTTP_NOT_FOUND);
         }
 
@@ -137,7 +144,7 @@ class AdminController extends AbstractController
                 'id' => $admin->getId(),
                 'fullName' => $admin->getFullName(),
                 'email' => $admin->getEmail(),
-                'role' => $admin->getRole(),
+                'role' => $admin->getRoles(),
                 'phoneNumber' => $admin->getPhoneNumber(),
             ]
         ];
@@ -155,7 +162,7 @@ class AdminController extends AbstractController
                 'id' => $indUser->getId(),
                 'name' => $indUser->getFullName(),
                 'email' => $indUser->getEmail(),
-                'role' => $indUser->getRole(),
+                'role' => $indUser->getRoles(),
                 'phone_number' => $indUser->getPhoneNumber(),
             ];
         }
@@ -168,48 +175,48 @@ class AdminController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
-        if (isset($data['email']) && isset($data['fullName'])) {
-            $email = $data['email'];
-            $fullName = $data['fullName'];
+        // if (isset($data['email']) && isset($data['fullName'])) {
+        //     $email = $data['email'];
+        //     $fullName = $data['fullName'];
 
-            $existingUser = $userRepository->findOneBy(['email' => $email]);
-            if ($existingUser) {
-                return new JsonResponse(['error' => 'Email already exists'], Response::HTTP_BAD_REQUEST);
-            }
+        //     $existingUser = $userRepository->findOneBy(['email' => $email]);
+        //     if ($existingUser) {
+        //         return new JsonResponse(['error' => 'Email already exists'], Response::HTTP_BAD_REQUEST);
+        //     }
 
-            $dummyPassword = bin2hex(random_bytes(4));
-            $user = new User();
+        //     $dummyPassword = bin2hex(random_bytes(4));
+        //     $user = new User();
 
-            $hashedPassword = $passwordHasher->hashPassword($user, $dummyPassword);
-            $user->setPassword($hashedPassword);
-            $user->setEmail($email);
-            $user->setFullName($fullName);
-            $user->setRole('user');
+        //     $hashedPassword = $passwordHasher->hashPassword($user, $dummyPassword);
+        //     $user->setPassword($hashedPassword);
+        //     $user->setEmail($email);
+        //     $user->setFullName($fullName);
+        //     $user->setRoles(['ROLE_USER']);
 
-            $em->persist($user);
-            $em->flush();
+        //     $em->persist($user);
+        //     $em->flush();
 
-            $emailMessage = (new Email())
-                ->from('taskboard.08@gmail.com')
-                ->to($email)
-                ->subject('You are invited as an user')
-                ->html($this->renderView('emails/invite.html.twig', [
-                    'email' => $email,
-                    'password' => $dummyPassword,
-                ]));
+        //     $emailMessage = (new Email())
+        //         ->from('taskboard.08@gmail.com')
+        //         ->to($email)
+        //         ->subject('You are invited as an user')
+        //         ->html($this->renderView('emails/invite.html.twig', [
+        //             'email' => $email,
+        //             'password' => $dummyPassword,
+        //         ]));
 
-            $mailer->send($emailMessage);
+        //     $mailer->send($emailMessage);
 
-            return new JsonResponse([
-                'message' => 'Invitation sent successfully!',
-                'user' => [
-                    'id' => $user->getId(),
-                    'email' => $user->getEmail(),
-                    'name' => $user->getFullName(),
-                    'role' => $user->getRole()
-                ]
-            ], Response::HTTP_OK);
-        }
+        //     return new JsonResponse([
+        //         'message' => 'Invitation sent successfully!',
+        //         'user' => [
+        //             'id' => $user->getId(),
+        //             'email' => $user->getEmail(),
+        //             'name' => $user->getFullName(),
+        //             'role' => $user->getRoles()
+        //         ]
+        //     ], Response::HTTP_OK);
+        // }
 
         return new JsonResponse(['error' => 'Invalid input'], Response::HTTP_BAD_REQUEST);
     }
@@ -306,7 +313,7 @@ class AdminController extends AbstractController
                 'id' => $user->getId(),
                 'email' => $user->getEmail(),
                 'name' => $user->getFullName(),
-                'role' => $user->getRole()
+                'role' => $user->getRoles()
             ];
         }
 
@@ -436,10 +443,10 @@ class AdminController extends AbstractController
         }
 
         // Toggle user role
-        if ($user->getRole() == 'user') {
-            $user->setRole('admin');
+        if (in_array('ROLE_USER', $user->getRoles())) {
+            $user->setRoles(['ROLE_ADMIN']);
         } else {
-            $user->setRole('user');
+            $user->setRoles(['ROLE_USER']);
         }
 
         $em->persist($user);
@@ -512,7 +519,7 @@ class AdminController extends AbstractController
                     'id' => $member->getId(),
                     'email' => $member->getEmail(),
                     'name' => $member->getFullName(),
-                    'role' => $member->getRole(),
+                    'role' => $member->getRoles(),
                 ];
             }
         }
@@ -520,7 +527,7 @@ class AdminController extends AbstractController
         $response = [
             'user' => [
                 'id' => $user->getId(),
-                'name' =>  $user->getName(),
+                'name' =>  $user->getFullName(),
                 'email' => $user->getEmail(),
                 
             ],
@@ -533,6 +540,6 @@ class AdminController extends AbstractController
         ];
 
         return new JsonResponse($response, Response::HTTP_OK);
-
     }
+
 }

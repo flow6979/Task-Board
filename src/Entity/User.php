@@ -4,7 +4,6 @@ namespace App\Entity;
 
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
-
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 
@@ -54,19 +53,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
-    public function getUserIdentifier(): string
-    {
-        return (string) $this->email;
-    }
-    public function getRoles(): array
-    {
-        $roles = $this->role;
-        // guarantee every user at least has ROLE_USER
-        $roles[] = 'ROLE_USER';
-
-        return array_unique($roles);
-    }
-
 
         /**
      * A visual identifier that represents this user.
@@ -83,7 +69,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->password;
     }
 
-    public function setPassword(string $password): self
+    public function setPassword(string $password): static
     {
         $this->password = $password;
 
@@ -141,12 +127,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
-
-    public function getUsername(): string
-    {
-        return $this->email;
-    }
-
     public function getResetToken(): ?string
     {
         return $this->resetToken;
@@ -166,11 +146,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getSalt(): ?string
     {
         return null;
-    }
-
-    public function eraseCredentials(): void
-    {
-        
     }
 
         /**

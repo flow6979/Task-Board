@@ -11,15 +11,16 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\User;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use App\Repository\UserRepository;
 
 class AuthController extends AbstractController
 {
     #[Route('/api/login_check', name: 'api_login_check', methods: ['POST'])]
-    public function loginCheck(Request $request, UserPasswordHasherInterface $passwordHasher, JWTTokenManagerInterface $jwtManager, EntityManagerInterface $entityManager): JsonResponse
+    public function loginCheck(Request $request, UserPasswordHasherInterface $passwordHasher, JWTTokenManagerInterface $jwtManager, UserRepository $userRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
-        $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $data['email']]);
+        $user = $userRepository->findOneBy(['email' => $data['email']]);
 
         if (!$user || !$passwordHasher->isPasswordValid($user, $data['password'])) {
             return new JsonResponse(['message' => 'Invalid credentials'], 401);
@@ -27,8 +28,22 @@ class AuthController extends AbstractController
 
         $token = $jwtManager->create($user);
 
-        return new JsonResponse(['token' => $token, 'redirect' => in_array('ROLE_ADMIN', $user->getRoles()) ? '/api/admin' : '/api/home']);
+        // return new JsonResponse(['token' => $token, 'redirect' => in_array('ROLE_ADMIN', $user->getRoles()) ? '/api/admin' : '/api/home']);
+        return new JsonResponse([
+            'token' => $token,
+            'redirect' => in_array('ROLE_ADMIN', $user->getRoles()) ? '/admin' : '/employee',
+            'user' => [
+                'email' => $user->getEmail(),
+                // 'roles' => $user->getRoles(),
+            ],
+        ]);
+        // return new JsonResponse(["msg" => "hi"]);
     }
+
+
+
+
+
 
     #[Route('/api/admin', name: 'api_admin')]
     public function adminPage(UserInterface $user): JsonResponse
