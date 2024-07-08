@@ -119,7 +119,6 @@ class Task
     public function setAssignee(?User $assignee): self
     {
         $this->assignee = $assignee;
-
         return $this;
     }
 

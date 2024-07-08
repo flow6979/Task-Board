@@ -14,7 +14,10 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+
 
 class AdminController extends AbstractController
 {
@@ -24,6 +27,7 @@ class AdminController extends AbstractController
     {
         $this->passwordHasher = $passwordHasher;
     }
+
 
     #[Route('/getAdmin', name: 'app_admin', methods: ['GET'])]
     public function index(UserRepository $userRepository): JsonResponse
@@ -59,7 +63,7 @@ class AdminController extends AbstractController
         $plainPassword = $data['password'];
         $hashedPassword = $this->passwordHasher->hashPassword($admin, $plainPassword);
         $admin->setPassword($hashedPassword);
-        $admin->setRole('admin');
+        // $admin->setRole('admin');
 
         $em->persist($admin);
         $em->flush();
@@ -70,7 +74,7 @@ class AdminController extends AbstractController
                 'id' => $admin->getId(),
                 'fullName' => $admin->getFullName(),
                 'email' => $admin->getEmail(),
-                'role' => $admin->getRole(),
+                // 'role' => $admin->getRole(),
                 'phoneNumber' => $admin->getPhoneNumber(),
             ]
         ], Response::HTTP_OK);
@@ -157,11 +161,34 @@ class AdminController extends AbstractController
         return new JsonResponse($usersArray, Response::HTTP_OK);
     }
 
-    #[Route('/admin/inviteUser', name: 'invite_user', methods: ['POST'])]
-    public function invite(Request $request, EntityManagerInterface $em, MailerInterface $mailer, UserPasswordHasherInterface $passwordHasher, UserRepository $userRepository): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true);
 
+
+    #[Route('/admin/inviteUser', name: 'invite_user', methods: ['POST'])]
+    public function invite(Request $request,JWTTokenManagerInterface $jwtManager, EntityManagerInterface $em, MailerInterface $mailer, UserPasswordHasherInterface $passwordHasher, UserRepository $userRepository): JsonResponse {
+
+        $data = json_decode($request->getContent(), true);
+        if (!isset($data['token'])) {
+            return new JsonResponse(['error' => 'Token is required'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $userData = $jwtManager->parse($data['token']);
+        } catch (\Exception $e) {
+            return new JsonResponse(['error' => 'Invalid token'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Check if the user exists in the database
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not found'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Step 3: Verify if the user's role is "admin"
+        if (!in_array('ROLE_ADMIN', $user->getRoles())) {
+            return new JsonResponse(['error' => 'Access denied'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Proceed with the invitation process if the checks pass
         if (isset($data['email']) && isset($data['fullName'])) {
             $email = $data['email'];
             $fullName = $data['fullName'];
@@ -172,21 +199,21 @@ class AdminController extends AbstractController
             }
 
             $dummyPassword = bin2hex(random_bytes(4));
-            $user = new User();
+            $newUser = new User();
 
-            $hashedPassword = $passwordHasher->hashPassword($user, $dummyPassword);
-            $user->setPassword($hashedPassword);
-            $user->setEmail($email);
-            $user->setFullName($fullName);
-            $user->setRole('user');
+            $hashedPassword = $passwordHasher->hashPassword($newUser, $dummyPassword);
+            $newUser->setPassword($hashedPassword);
+            $newUser->setEmail($email);
+            $newUser->setFullName($fullName);
+            $newUser->setRoles(["ROLE_USER"]);
 
-            $em->persist($user);
+            $em->persist($newUser);
             $em->flush();
 
             $emailMessage = (new Email())
                 ->from('taskboard.08@gmail.com')
                 ->to($email)
-                ->subject('You are invited as an user')
+                ->subject('You are invited as a user')
                 ->html($this->renderView('emails/invite.html.twig', [
                     'email' => $email,
                     'password' => $dummyPassword,
@@ -197,16 +224,20 @@ class AdminController extends AbstractController
             return new JsonResponse([
                 'message' => 'Invitation sent successfully!',
                 'user' => [
-                    'id' => $user->getId(),
-                    'email' => $user->getEmail(),
-                    'name' => $user->getFullName(),
-                    'role' => $user->getRole()
+                    'id' => $newUser->getId(),
+                    'email' => $newUser->getEmail(),
+                    'name' => $newUser->getFullName(),
                 ]
             ], Response::HTTP_OK);
         }
 
         return new JsonResponse(['error' => 'Invalid input'], Response::HTTP_BAD_REQUEST);
     }
+
+
+
+
+
 
     #[Route('/admin/createTeam', name: 'create_team', methods: ['POST'])]
     public function createTeam(Request $request, EntityManagerInterface $em, TeamRepository $teamRepository): JsonResponse
