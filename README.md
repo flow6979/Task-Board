@@ -8,3 +8,7 @@ It allow the users to see a list of tasks assigned to them and their team. The u
 
 
 ### Frontend repo link - [https://github.com/Akhil4264/TaskBoard-frontend](https://github.com/Akhil4264/TaskBoard-frontend)
+
+## Backend design - 
+
+<img width="1527" alt="image" src="https://github.com/flow6979/Task-Board/assets/80835305/767076f3-18e5-4dd4-abd9-4656a7fcebee">
