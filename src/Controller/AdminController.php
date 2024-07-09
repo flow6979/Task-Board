@@ -153,7 +153,7 @@ class AdminController extends AbstractController
                 'id' => $indUser->getId(),
                 'name' => $indUser->getFullName(),
                 'email' => $indUser->getEmail(),
-                'role' => $indUser->getRole(),
+                'role' => $indUser->getRoles(),
                 'phone_number' => $indUser->getPhoneNumber(),
             ];
         }
@@ -240,9 +240,37 @@ class AdminController extends AbstractController
 
 
     #[Route('/admin/createTeam', name: 'create_team', methods: ['POST'])]
-    public function createTeam(Request $request, EntityManagerInterface $em, TeamRepository $teamRepository): JsonResponse
+    public function createTeam(Request $request, EntityManagerInterface $em, TeamRepository $teamRepository, UserRepository $userRepository,JWTTokenManagerInterface $jwtManager): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+        if(!$data['token']){
+            return new JsonResponse(["tokenMsg" => "No token"]);
+        }
+
+        try {
+            $userData = $jwtManager->parse($data['token']); // Use decode instead of parse
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+            // Handle specific JWT decode failures
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            // Handle any other exceptions
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+
+        if (!$user) {
+            return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+        }
+        if(!in_array('ROLE_ADMIN', $user->getRoles()))
+        {
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
+        }
+
+        
         if (isset($data['teamName']) && isset($data['teamDescription'])) {
             $existingTeam = $teamRepository->findOneBy(['name' => $data['teamName']]);
             if ($existingTeam) {
@@ -254,7 +282,7 @@ class AdminController extends AbstractController
                         'description' => $existingTeam->getDescription(),
                         'createdAt' => $existingTeam->getCreatedAt()
                     ]
-                ], Response::HTTP_BAD_REQUEST);
+                ], );
             } else {
                 try {
                     $team = new Team();
@@ -304,9 +332,37 @@ class AdminController extends AbstractController
         return new JsonResponse($teamsArray, Response::HTTP_OK);
     }
 
-    #[Route('/admin/getTeam/{id}', name: 'show_team', methods: ['GET'])]
-    public function showTeam(int $id, TeamRepository $teamRepository, UserRepository $userRepository): JsonResponse
+    #[Route('/admin/getTeam/{id}', name: 'show_team', methods: ['POST'])]
+    public function showTeam(Request $request, int $id, TeamRepository $teamRepository, JWTTokenManagerInterface $jwtManager,UserRepository $userRepository): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        if(!$data['token']){
+            return new JsonResponse(["tokenMsg" => "No token"]);
+        }
+
+        try {
+            $userData = $jwtManager->parse($data['token']); // Use decode instead of parse
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+            // Handle specific JWT decode failures
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            // Handle any other exceptions
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+
+        if (!$user) {
+            return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+        }
+        if(!in_array('ROLE_ADMIN', $user->getRoles()))
+        {
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
+        }
+
         $team = $teamRepository->find($id);
 
         if (!$team) {
@@ -322,6 +378,12 @@ class AdminController extends AbstractController
                 'name' => $team->getName(),
                 'description' => $team->getDescription()
             ],
+            'user' => [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'name' => $user->getFullName(),
+                'role' => $user->getRoles()
+            ],
             'users' => [],
             'userCount' => $userCount,
         ];
@@ -331,7 +393,7 @@ class AdminController extends AbstractController
                 'id' => $user->getId(),
                 'email' => $user->getEmail(),
                 'name' => $user->getFullName(),
-                'role' => $user->getRole()
+                'role' => $user->getRoles()
             ];
         }
 
@@ -559,4 +621,5 @@ class AdminController extends AbstractController
 
         return new JsonResponse($response, Response::HTTP_OK);
     }
+    
 }

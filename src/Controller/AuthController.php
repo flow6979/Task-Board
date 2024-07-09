@@ -14,6 +14,9 @@ use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 
 class AuthController extends AbstractController
 {
+
+
+
     #[Route('/api/login_check', name: 'api_login_check', methods: ['POST'])]
     public function loginCheck(Request $request, UserPasswordHasherInterface $passwordHasher, JWTTokenManagerInterface $jwtManager, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -27,7 +30,7 @@ class AuthController extends AbstractController
 
         $token = $jwtManager->create($user);
 
-        return new JsonResponse(['token' => $token, 'redirect' => in_array('ROLE_ADMIN', $user->getRoles()) ? '/api/admin' : '/api/home']);
+        return new JsonResponse(['token' => $token, 'redirect' => in_array('ROLE_ADMIN', $user->getRoles()) ? '/admin' : '/employee']);
     }
 
     #[Route('/api/admin', name: 'api_admin')]

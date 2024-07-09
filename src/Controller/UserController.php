@@ -11,6 +11,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+
 
 class UserController extends AbstractController
 {
@@ -40,13 +42,30 @@ class UserController extends AbstractController
         return new JsonResponse($usersArray, Response::HTTP_OK);
     }
 
-    #[Route('/getUser/{id}', name: 'get_user_by_id', methods: ['GET'])]
-    public function getUserById(int $id, UserRepository $userRepository): JsonResponse
+    #[Route('/getUser', name: 'get_user', methods: ['POST'])]
+    public function getUserByToken(Request $request, UserRepository $userRepository, JWTTokenManagerInterface $jwtManager): JsonResponse
     {
-        $user = $userRepository->find($id);
+        $data = json_decode($request->getContent(), true);
+        if(!$data['token']){
+            return new JsonResponse(["tokenMsg" => "Invalid Token"]);
+        }
+        try {
+            $userData = $jwtManager->parse($data['token']); // Use decode instead of parse
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            // Handle any other exceptions
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+
 
         if (!$user) {
-            return new JsonResponse(['error' => 'User not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['InvalidToken' => 'User not found.']);
         }
 
         $team = $user->getTeam();
@@ -61,13 +80,11 @@ class UserController extends AbstractController
             ];
 
             foreach ($team->getUsers() as $member) {
-                // Exclude the user themselves from the list of members
-                // if ($member->getId() !== $id) {
                     $members[] = [
                         'id' => $member->getId(),
                         'email' => $member->getEmail(),
                         'name' => $member->getFullName(),
-                        'role' => $member->getRole(),
+                        'role' => $member->getRoles(),
                     ];
                 // }
             }
@@ -77,12 +94,92 @@ class UserController extends AbstractController
             'id' => $user->getId(),
             'name' => $user->getFullName(),
             'email' => $user->getEmail(),
-            'role' => $user->getRole(),
+            'role' => $user->getRoles(),
             'phoneNumber' => $user->getPhoneNumber(),
         ];
 
         $responseArray = [
             'user' => $userDetails,
+            'team' => $teamDetails,
+            'members' => $members,
+        ];
+
+        return new JsonResponse($responseArray, Response::HTTP_OK);
+    }
+
+    #[Route('/getUser/{id}', name: 'get_user_by_id', methods: ['POST'])]
+    public function getUserById(Request $request, int $id,UserRepository $userRepository, JWTTokenManagerInterface $jwtManager): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if(!$data['token']){
+            return new JsonResponse(["tokenMsg" => "Invalid Token"]);
+        }
+        try {
+            $userData = $jwtManager->parse($data['token']); // Use decode instead of parse
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            // Handle any other exceptions
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $Tokenuser = $userRepository->findOneBy(['email' => $userData['username']]);
+
+
+        if (!$Tokenuser) {
+            return new JsonResponse(['InvalidToken' => 'User not found.']);
+        }
+
+        
+        $user = $userRepository->findOneBy(['id' => $id]);
+        if(!$user){
+            return new JsonResponse(['error' => 'User not found.']);
+        }
+
+        $team = $user->getTeam();
+        $teamDetails = null;
+        $members = [];
+
+        if ($team) {
+            $teamDetails = [
+                'id' => $team->getId(),
+                'name' => $team->getName(),
+                'description' => $team->getDescription(),
+            ];
+
+            foreach ($team->getUsers() as $member) {
+                    $members[] = [
+                        'id' => $member->getId(),
+                        'email' => $member->getEmail(),
+                        'name' => $member->getFullName(),
+                        'role' => $member->getRoles(),
+                    ];
+                // }
+            }
+        }
+
+        $userDetails = [
+            'id' => $user->getId(),
+            'name' => $user->getFullName(),
+            'email' => $user->getEmail(),
+            'role' => $user->getRoles(),
+            'phoneNumber' => $user->getPhoneNumber(),
+        ];
+
+        $loggedUserDetails = [
+            'id' => $Tokenuser->getId(),
+            'name' => $Tokenuser->getFullName(),
+            'email' => $Tokenuser->getEmail(),
+            'role' => $Tokenuser->getRoles(),
+            'phoneNumber' => $Tokenuser->getPhoneNumber(),
+        ];
+
+        $responseArray = [
+            'user' => $userDetails,
+            'loggedUser' => $loggedUserDetails,
             'team' => $teamDetails,
             'members' => $members,
         ];
@@ -106,7 +203,7 @@ class UserController extends AbstractController
         $plainPassword = $data['password'];
         $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
         $user->setPassword($hashedPassword);
-        $user->setRole('user');
+        $user->setRoles(["ROLE_USER"]);
 
         $em->persist($user);
         $em->flush();
@@ -117,7 +214,7 @@ class UserController extends AbstractController
                 'id' => $user->getId(),
                 'fullName' => $user->getFullName(),
                 'email' => $user->getEmail(),
-                'role' => $user->getRole(),
+                'role' => $user->getRoles(),
                 'phoneNumber' => $user->getPhoneNumber(),
             ]
         ], Response::HTTP_CREATED);
