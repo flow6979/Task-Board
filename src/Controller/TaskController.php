@@ -15,6 +15,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Psr\Log\LoggerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+
 use Symfony\Component\Validator\Constraints\Length;
 
 #[Route('/task')]
@@ -29,17 +31,17 @@ class TaskController extends AbstractController
         //$this->security = $security;
     }
 
-    #[Route('/', name: 'task_index', methods: ['GET'])]
-    public function index(): Response
-    {
-        $repository = $this->entityManager->getRepository(Task::class);
-        // $user = $security->getUser();
+    // #[Route('/', name: 'task_index', methods: ['GET'])]
+    // public function index(): Response
+    // {
+    //     $repository = $this->entityManager->getRepository(Task::class);
+    //     // $user = $security->getUser();
 
-        $tasks = $repository->findAll();
-        return $this->render('task/index.html.twig', [
-            'tasks' => $tasks,
-        ]);
-    }
+    //     $tasks = $repository->findAll();
+    //     return $this->render('task/index.html.twig', [
+    //         'tasks' => $tasks,
+    //     ]);
+    // }
 
     // #[Route('/new', name: 'task_new', methods: ['GET', 'POST'])]
     // public function new(Request $request): Response
@@ -64,9 +66,36 @@ class TaskController extends AbstractController
     // }
 
     #[Route('/new', name: 'task_new', methods: ['POST'])]
-    public function new(Request $request, UserRepository $userRepository): JsonResponse
+    public function new(Request $request, UserRepository $userRepository, JWTTokenManagerInterface $jwtManager): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['token'])) {
+            return new JsonResponse(["tokenMsg" => "No Token Found"], 200);
+        }
+
+        try {
+            $userData = $jwtManager->parse($data['token']);
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+
+    
+
+    
+        
+        if (!$user) {
+            return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+        }
 
         if (!isset($data['name'], $data['description'], $data['priority'], $data['assignedTo'], $data['deadline'])) {
             return new JsonResponse(['error' => 'Invalid data provided'], Response::HTTP_BAD_REQUEST);
@@ -115,17 +144,46 @@ class TaskController extends AbstractController
 
 
     #[Route('/{id}/edit', name: 'task_edit', methods: ['POST'])]
-    public function edit(Request $request, Task $task, EntityManagerInterface $entityManager,LoggerInterface $logger): Response
+    public function edit(Request $request, Task $task, EntityManagerInterface $entityManager,LoggerInterface $logger, UserRepository $userRepository,JWTTokenManagerInterface $jwtManager): Response
     {
         // Decode JSON from request body
         $data = json_decode($request->getContent(), true);
 
-        // Log the decoded data
-        if ($data) {
-            $logger->info('Decoded JSON data: ' . json_encode($data));
-        } else {
-            $logger->error('Failed to decode JSON');
+        if (!isset($data['token'])) {
+            return new JsonResponse(["tokenMsg" => "No Token Found"], 200);
         }
+
+        try {
+            $userData = $jwtManager->parse($data['token']);
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+
+    
+
+    
+        
+        if (!$user) {
+            return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+        }
+
+
+
+        // // Log the decoded data
+        // if ($data) {
+        //     $logger->info('Decoded JSON data: ' . json_encode($data));
+        // } else {
+        //     $logger->error('Failed to decode JSON');
+        // }
 
         if (!$task) {
             return new JsonResponse(["error" => "Task not available"], Response::HTTP_NOT_FOUND);
@@ -169,25 +227,55 @@ class TaskController extends AbstractController
 
 
 
-    #[Route('/{id}', name: 'task_show', methods: ['GET'])]
-    public function show(int $id): Response
-    {
-        $repository = $this->entityManager->getRepository(Task::class);
-        $task = $repository->find($id);
+    // #[Route('/{id}', name: 'task_show', methods: ['GET'])]
+    // public function show(int $id): Response
+    // {
+    //     $repository = $this->entityManager->getRepository(Task::class);
+    //     $task = $repository->find($id);
 
-        if (!$task) {
-            throw $this->createNotFoundException('The task does not exist');
-        }
+    //     if (!$task) {
+    //         throw $this->createNotFoundException('The task does not exist');
+    //     }
 
-        return $this->render('task/show.html.twig', [
-            'task' => $task,
-        ]);
-    }
+    //     return $this->render('task/show.html.twig', [
+    //         'task' => $task,
+    //     ]);
+    // }
 
 
     #[Route('/team/{teamId}', name: 'task_by_team', methods: ["GET"])]
-    public function getTasksByTeam(int $teamId): JsonResponse
+    public function getTasksByTeam(int $teamId, Request $request,JWTTokenManagerInterface $jwtManager, UserRepository $userRepository ): JsonResponse
     {
+
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['token'])) {
+            return new JsonResponse(["tokenMsg" => "No Token Found"], 200);
+        }
+
+        try {
+            $userData = $jwtManager->parse($data['token']);
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+
+    
+
+    
+        
+        if (!$user) {
+            return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+        }
+
         $teamRepository = $this->entityManager->getRepository(Team::class);
         $team = $teamRepository->find($teamId);
 
@@ -228,8 +316,38 @@ class TaskController extends AbstractController
 
 
     #[Route('/{id}', name: 'task_delete', methods: ['POST'])]
-    public function delete(Request $request, Task $task): JsonResponse
+    public function delete(Request $request,JWTTokenManagerInterface $jwtManager, UserRepository $userRepository, Task $task): JsonResponse
     {
+
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['token'])) {
+            return new JsonResponse(["tokenMsg" => "No Token Found"], 200);
+        }
+
+        try {
+            $userData = $jwtManager->parse($data['token']);
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+
+    
+
+    
+        
+        if (!$user) {
+            return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+        }
+
         // if ($this->isCsrfTokenValid('delete' . $task->getId(), $request->request->get('_token'))) {
         $this->entityManager->remove($task);
         $this->entityManager->flush();
@@ -239,8 +357,38 @@ class TaskController extends AbstractController
     }
 
     #[Route('/user/{id}', name: 'user_tasks', methods: ['GET'])]
-    public function userTasks(int $id): Response
+    public function userTasks(Request $request,JWTTokenManagerInterface $jwtManager, UserRepository $userRepository,int $id): Response
     {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data['token'])) {
+            return new JsonResponse(["tokenMsg" => "No Token Found"], 200);
+        }
+
+        try {
+            $userData = $jwtManager->parse($data['token']);
+            if (!$userData || !isset($userData['username'])) {
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+            }
+        } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
+
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
+        } catch (\Exception $e) {
+            
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
+        }
+
+        $user = $userRepository->findOneBy(['email' => $userData['username']]);
+
+    
+
+    
+        
+        if (!$user) {
+            return new JsonResponse(["InvalidToken" => "Invalid Token"]);
+        }
+
+
         $userRepository = $this->entityManager->getRepository(User::class);
         $user = $userRepository->find($id);
         $taskrepository = $this->entityManager->getRepository(Task::class);
