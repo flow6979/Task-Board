@@ -125,6 +125,7 @@ class TaskController extends AbstractController
             'title' => $task->getTitle(),
             'description' => $task->getDescription(),
             'priority' => $task->getPriority(),
+            'status' => $task->getStatus(),
             'assignedTo' => [
                 'id' => $user->getId(),
                 'name' => $user->getFullName(),

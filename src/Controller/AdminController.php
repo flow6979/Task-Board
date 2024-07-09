@@ -434,25 +434,21 @@ class AdminController extends AbstractController
                 return new JsonResponse(["InvalidToken" => "Invalid Token"]);
             }
         } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
-
             return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
         } catch (\Exception $e) {
-            
             return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
         }
 
         $user = $userRepository->findOneBy(['email' => $userData['username']]);
 
-    
-
-        if(!in_array('ROLE_ADMIN', $user->getRoles()))
-        {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
-        }
-        
         if (!$user) {
             return new JsonResponse(["InvalidToken" => "Invalid Token"]);
         }
+        if(!in_array('ROLE_ADMIN', $user->getRoles()))
+        {
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
+        }
+
         if (isset($data['teamName']) && isset($data['teamDescription'])) {
             $existingTeam = $teamRepository->findOneBy(['name' => $data['teamName']]);
             if ($existingTeam) {
@@ -464,7 +460,7 @@ class AdminController extends AbstractController
                         'description' => $existingTeam->getDescription(),
                         'createdAt' => $existingTeam->getCreatedAt()
                     ]
-                ], Response::HTTP_BAD_REQUEST);
+                ], );
             } else {
                 try {
                     $team = new Team();
@@ -569,16 +565,14 @@ class AdminController extends AbstractController
 
         $user = $userRepository->findOneBy(['email' => $userData['username']]);
 
-    
-
-        if(!in_array('ROLE_ADMIN', $user->getRoles()))
-        {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
-        }
-        
         if (!$user) {
             return new JsonResponse(["InvalidToken" => "Invalid Token"]);
         }
+        if(!in_array('ROLE_ADMIN', $user->getRoles()))
+        {
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
+        }
+
         $team = $teamRepository->find($id);
 
         if (!$team) {
@@ -593,6 +587,12 @@ class AdminController extends AbstractController
                 'id' => $team->getId(),
                 'name' => $team->getName(),
                 'description' => $team->getDescription()
+            ],
+            'user' => [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'name' => $user->getFullName(),
+                'role' => $user->getRoles()
             ],
             'users' => [],
             'userCount' => $userCount,

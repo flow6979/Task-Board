@@ -27,22 +27,22 @@ class HomeController extends AbstractController
         }
 
         try {
-            $userData = $jwtManager->parse($data['token']); // Use decode instead of parse
+            $userData = $jwtManager->parse($data['token']);
             if (!$userData || !isset($userData['username'])) {
-                return new JsonResponse(["msg" => "Invalid Token"], Response::HTTP_UNAUTHORIZED);
+                return new JsonResponse(["InvalidToken" => "Invalid Token"]);
             }
         } catch (\Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException $e) {
-            // Handle specific JWT decode failures
-            return new JsonResponse(["msg" => "Invalid or Expired Token"], Response::HTTP_UNAUTHORIZED);
+
+            return new JsonResponse(["ExpiredToken" => "Invalid or Expired Token"]);
         } catch (\Exception $e) {
-            // Handle any other exceptions
-            return new JsonResponse(["msg" => "An error occurred while processing the token"], Response::HTTP_UNAUTHORIZED);
+            
+            return new JsonResponse(["InvalidToken" => "An error occurred while processing the token"]);
         }
 
         $user = $userRepository->findOneBy(['email' => $userData['username']]);
 
         if (!$user) {
-            return new JsonResponse(["msg" => "Invalid Token"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["InvalidToken" => "Invalid Token"]);
         }
 
         $authUser = [
