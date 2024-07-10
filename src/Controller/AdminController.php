@@ -34,7 +34,7 @@ class AdminController extends AbstractController
     }
 
 
-    #[Route('/getAdmin', name: 'app_admin', methods: ['GET'])]
+    #[Route('/getAdmin', name: 'app_admin', methods: ['POST'])]
     public function index(Request $request,
     JWTTokenManagerInterface $jwtManager,UserRepository $userRepository): JsonResponse
     {
@@ -60,7 +60,7 @@ class AdminController extends AbstractController
         $user = $userRepository->findOneBy(['email' => $userData['username']]);
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
 
         if (!$user) {
@@ -76,9 +76,9 @@ class AdminController extends AbstractController
         foreach ($adminUsers as $adminUser) {
             $adminUsersArray[] = [
                 'id' => $adminUser->getId(),
-                'fullName' => $adminUser->getFullName(),
+                'name' => $adminUser->getFullName(),
                 'email' => $adminUser->getEmail(),
-                'roles' => $adminUser->getRoles(),
+                'role' => $adminUser->getRoles(),
                 'phoneNumber' => $adminUser->getPhoneNumber(),
             ];
         }
@@ -115,7 +115,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["msg"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -123,7 +123,7 @@ class AdminController extends AbstractController
         }
         $existingUser = $userRepository->findOneBy(['email' => $data['email']]);
         if ($existingUser) {
-            return new JsonResponse(['error' => 'Email already exists'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Email already exists']);
         }
         $admin = new User();
         $admin->setEmail($data['email']);
@@ -177,7 +177,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -190,7 +190,7 @@ class AdminController extends AbstractController
 
 
         if (!$user) {
-            return new JsonResponse(['error' => 'Admin user not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Admin user not found.']);
         }
 
         $em->remove($user);
@@ -227,7 +227,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -236,7 +236,7 @@ class AdminController extends AbstractController
         $admin = $userRepository->find($userId);
 
         if (!$admin || !in_array('ROLE_ADMIN', $admin->getRoles())) {
-            return new JsonResponse(['error' => 'Admin user not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Admin user not found.']);
         }
 
         if (isset($data['fullName'])) {
@@ -271,7 +271,7 @@ class AdminController extends AbstractController
         return new JsonResponse($responseData, Response::HTTP_OK);
     }
 
-    #[Route('/admin/getIndUsers', name: 'ind_user', methods: ['GET'])]
+    #[Route('/admin/getIndUsers', name: 'ind_user', methods: ['POST'])]
     public function getIndUsers(UserRepository $userRepository, JWTTokenManagerInterface $jwtManager, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -299,7 +299,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -347,35 +347,22 @@ class AdminController extends AbstractController
 
     
 
-        if(!in_array('ROLE_ADMIN', $user->getRoles()))
-        {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
-        }
         
         if (!$user) {
             return new JsonResponse(["InvalidToken" => "Invalid Token"]);
         }
 
-        // Step 3: Verify if the user's role is "admin"
         if (!in_array('ROLE_ADMIN', $user->getRoles())) {
-            return new JsonResponse(['error' => 'Access denied'], Response::HTTP_FORBIDDEN);
-        }
+            return new JsonResponse(['accessStatus' => 'Access denied']);
+        }        
 
-        $existingUser = $userRepository->findOneBy(['email' => $data['email']]);
-        if ($existingUser) {
-            return new JsonResponse(['error' => 'Email already exists'], Response::HTTP_BAD_REQUEST);
-        }
-
-        
-
-        // Proceed with the invitation process if the checks pass
         if (isset($data['email']) && isset($data['fullName'])) {
             $email = $data['email'];
             $fullName = $data['fullName'];
 
             $existingUser = $userRepository->findOneBy(['email' => $email]);
             if ($existingUser) {
-                return new JsonResponse(['error' => 'Email already exists'], Response::HTTP_BAD_REQUEST);
+                return new JsonResponse(['error' => 'Email already exists']);
             }
 
             $dummyPassword = bin2hex(random_bytes(4));
@@ -411,7 +398,7 @@ class AdminController extends AbstractController
             ], Response::HTTP_OK);
         }
 
-        return new JsonResponse(['error' => 'Invalid input'], Response::HTTP_BAD_REQUEST);
+        return new JsonResponse(['error' => 'Invalid input']);
     }
 
 
@@ -453,14 +440,8 @@ class AdminController extends AbstractController
             $existingTeam = $teamRepository->findOneBy(['name' => $data['teamName']]);
             if ($existingTeam) {
                 return new JsonResponse([
-                    'error' => 'A team with this name already exists.',
-                    'team' => [
-                        'id' => $existingTeam->getId(),
-                        'name' => $existingTeam->getName(),
-                        'description' => $existingTeam->getDescription(),
-                        'createdAt' => $existingTeam->getCreatedAt()
-                    ]
-                ], );
+                    'error' => 'A team with this name already exists.'
+                ] );
             } else {
                 try {
                     $team = new Team();
@@ -474,22 +455,23 @@ class AdminController extends AbstractController
                         'message' => 'Team created successfully!',
                         'team' => [
                             'id' => $team->getId(),
+                            'count' =>0,
                             'name' => $team->getName(),
                             'description' => $team->getDescription(),
                             'createdAt' => $team->getCreatedAt()
                         ]
                     ], Response::HTTP_OK);
                 } catch (\Exception $e) {
-                    return new JsonResponse(['error' => 'Error creating team'], Response::HTTP_BAD_REQUEST);
+                    return new JsonResponse(['error' => 'Error creating team']);
                 }
             }
         } else {
-            return new JsonResponse(['error' => 'Invalid input'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Invalid input']);
         }
     }
 
 
-    #[Route('/admin/getTeams', name: 'show_teams', methods: ['GET'])]
+    #[Route('/admin/getTeams', name: 'show_teams', methods: ['POST'])]
     public function showTeams(Request $request, TeamRepository $teamRepository, JWTTokenManagerInterface $jwtManager, UserRepository $userRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -517,7 +499,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -541,7 +523,7 @@ class AdminController extends AbstractController
         return new JsonResponse($teamsArray, Response::HTTP_OK);
     }
 
-    #[Route('/admin/getTeam/{id}', name: 'show_team', methods: ['GET'])]
+    #[Route('/admin/getTeam/{id}', name: 'show_team', methods: ['POST'])]
     public function showTeam(Request $request, int $id, TeamRepository $teamRepository, JWTTokenManagerInterface $jwtManager,UserRepository $userRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -639,7 +621,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -648,7 +630,7 @@ class AdminController extends AbstractController
         $team = $teamRepository->find($teamId);
 
         if (!$team) {
-            return new JsonResponse(['error' => 'Team not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Team not found.']);
         }
 
         try {
@@ -663,7 +645,7 @@ class AdminController extends AbstractController
         } catch (\Exception $e) {
             error_log('Failed to delete team with ID ' . $teamId . ': ' . $e->getMessage());
 
-            return new JsonResponse(['error' => 'Failed to delete team.'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Failed to delete team.']);
         }
     }
 
@@ -700,7 +682,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -709,7 +691,7 @@ class AdminController extends AbstractController
         $team = $teamRepository->find($teamId);
 
         if (!$team) {
-            return new JsonResponse(['error' => 'Team not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Team not found.']);
         }
 
         if (isset($data['teamName'])) {
@@ -765,7 +747,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -773,12 +755,12 @@ class AdminController extends AbstractController
         }
 
         if (!isset($data['user_ids']) || !is_array($data['user_ids'])) {
-            return new JsonResponse(['error' => 'Invalid request format. Expected user_ids array.'], JsonResponse::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Invalid request format. Expected user_ids array.']);
         }
         $team = $em->getRepository(Team::class)->find($team_id);
 
         if (!$team) {
-            return new JsonResponse(['error' => 'Team not found.'], JsonResponse::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Team not found.']);
         }
         foreach ($data['user_ids'] as $userId) {
             $user = $userRepository->find($userId);
@@ -822,7 +804,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -832,15 +814,18 @@ class AdminController extends AbstractController
         $team = $teamRepository->find($teamId);
 
         if (!$user) {
-            throw $this->createNotFoundException('User not found');
+            return new JsonResponse(["error" => "User not found"]);
+            // throw $this->createNotFoundException('User not found');
         }
 
         if (!$team) {
-            throw $this->createNotFoundException('Team not found');
+            return new JsonResponse(["error" => "Team not found"]);
+            // throw $this->createNotFoundException('Team not found');
         }
 
         if ($user->getTeam() !== $team) {
-            throw $this->createAccessDeniedException('User does not belong to this team');
+            return new JsonResponse(["error" => "User does not belong to this team"]);
+            // throw $this->createAccessDeniedException('User does not belong to this team');
         }
 
         $user->setTeam(null);
@@ -878,7 +863,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -887,7 +872,8 @@ class AdminController extends AbstractController
         $user = $userRepository->find($userId);
 
         if (!$user) {
-            throw $this->createNotFoundException('User not found');
+            // throw $this->createNotFoundException('User not found');
+            return new JsonResponse(["error" => "User not found"]);
         }
 
         // Toggle user role
@@ -900,7 +886,7 @@ class AdminController extends AbstractController
         $em->persist($user);
         $em->flush();
 
-        return new JsonResponse(['message' => 'User role toggled successfully!']);
+        return new JsonResponse(['message' => 'User role toggled successfully!','roles' => $user->getRoles()]);
     }
     #[Route('/admin/changeUserTeam/{userId}', name: 'change_user_team', methods: ['POST'])]
     public function changeUserTeam(Request $request, EntityManagerInterface $em, UserRepository $userRepository, int $userId, JWTTokenManagerInterface $jwtManager): JsonResponse
@@ -930,14 +916,14 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
             return new JsonResponse(["InvalidToken" => "Invalid Token"]);
         }
         if (!isset($data['teamId'])) {
-            return new JsonResponse(['error' => 'Team ID is required.'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Team ID is required.']);
         }
 
         $teamId = $data['teamId'];
@@ -945,11 +931,11 @@ class AdminController extends AbstractController
         $user = $userRepository->find($userId);
 
         if (!$user) {
-            return new JsonResponse(['error' => 'User not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'User not found.']);
         }
 
         if (!$team) {
-            return new JsonResponse(['error' => 'Team not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Team not found.']);
         }
 
         try {
@@ -967,9 +953,9 @@ class AdminController extends AbstractController
             $em->persist($team);
             $em->flush();
 
-            return new JsonResponse(['message' => 'User team updated successfully.'], Response::HTTP_OK);
+            return new JsonResponse(['message' => 'User team updated successfully.']);
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => 'Failed to update user team.'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Failed to update user team.']);
         }
     }
 
@@ -1001,7 +987,7 @@ class AdminController extends AbstractController
 
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
         
         if (!$user) {
@@ -1012,13 +998,13 @@ class AdminController extends AbstractController
             $user = $userRepository->find($userId);
 
             if (!$user) {
-                return new JsonResponse(['error' => 'User not found.'], Response::HTTP_NOT_FOUND);
+                return new JsonResponse(['error' => 'User not found.']);
             }
 
             $team = $user->getTeam();
 
             if (!$team) {
-                return new JsonResponse(['error' => 'User is not part of any team.'], Response::HTTP_NOT_FOUND);
+                return new JsonResponse(['error' => 'User is not part of any team.']);
             }
 
             $members = [];
@@ -1047,7 +1033,7 @@ class AdminController extends AbstractController
         } catch (\Exception $e) {
 
             $this->logger->error('An error occurred ' . $e->getMessage());
-            return new JsonResponse(['error' => 'An error occurred '], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['error' => 'An error occurred ']);
         }
     }
 }

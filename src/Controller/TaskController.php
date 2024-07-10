@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Form\TaskType;
 use App\Repository\TaskRepository;
 use App\Repository\UserRepository;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,8 +17,10 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Psr\Log\LoggerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
-
+use Symfony\Component\Validator\Constraints\Date;
 use Symfony\Component\Validator\Constraints\Length;
+
+use function Symfony\Component\Clock\now;
 
 #[Route('/task')]
 class TaskController extends AbstractController
@@ -98,13 +101,13 @@ class TaskController extends AbstractController
         }
 
         if (!isset($data['name'], $data['description'], $data['priority'], $data['assignedTo'], $data['deadline'])) {
-            return new JsonResponse(['error' => 'Invalid data provided'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Invalid data provided']);
         }
 
         $user = $userRepository->find($data['assignedTo']);
 
         if (!$user) {
-            return new JsonResponse(['error' => 'Assigned user not found'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Assigned user not found']);
         }
 
         $task = new Task();
@@ -176,31 +179,32 @@ class TaskController extends AbstractController
             return new JsonResponse(["InvalidToken" => "Invalid Token"]);
         }
 
-
-
-        // // Log the decoded data
-        // if ($data) {
-        //     $logger->info('Decoded JSON data: ' . json_encode($data));
-        // } else {
-        //     $logger->error('Failed to decode JSON');
-        // }
-
         if (!$task) {
-            return new JsonResponse(["error" => "Task not available"], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(["error" => "Task not available"]);
         }
         if (!isset($data['assignedTo']['id'])) {
-            return new JsonResponse(["error" => "Assigned user ID is missing"], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(["error" => "Assigned user ID is missing"]);
         }
 
         $userRepository = $entityManager->getRepository(User::class);
         $user = $userRepository->findOneBy(['id' => $data['assignedTo']['id']]);
 
         if (!$user) {
-            return new JsonResponse(["error" => "User not available"], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(["error" => "User not available"]);
         }
 
         $task->setAssignee($user);
-
+        if (
+            !isset($data['title']) ||
+            !isset($data['description']) ||
+            !isset($data['priority']) ||
+            !isset($data['deadline']) ||
+            !isset($data['status']) ||
+            empty($data['status']) ||
+            (new DateTime($data['deadline'])) < (new DateTime())
+        ) {
+            return new JsonResponse(["error" => "Invalid Inputs"]);
+        }
         if (isset($data['title'])) {
             $task->setTitle($data['title']);
         }
@@ -243,7 +247,7 @@ class TaskController extends AbstractController
     // }
 
 
-    #[Route('/team/{teamId}', name: 'task_by_team', methods: ["GET"])]
+    #[Route('/team/{teamId}', name: 'task_by_team', methods: ["POST"])]
     public function getTasksByTeam(int $teamId, Request $request,JWTTokenManagerInterface $jwtManager, UserRepository $userRepository ): JsonResponse
     {
 
@@ -268,10 +272,6 @@ class TaskController extends AbstractController
 
         $user = $userRepository->findOneBy(['email' => $userData['username']]);
 
-    
-
-    
-        
         if (!$user) {
             return new JsonResponse(["InvalidToken" => "Invalid Token"]);
         }
@@ -280,7 +280,7 @@ class TaskController extends AbstractController
         $team = $teamRepository->find($teamId);
 
         if (!$team) {
-            throw $this->createNotFoundException('The team does not exist');
+            return new JsonResponse(["InvalidToken" => "Team Doesn't exists"]);
         }
 
         $userRepository = $this->entityManager->getRepository(User::class);
@@ -356,7 +356,7 @@ class TaskController extends AbstractController
         // return $this->redirectToRoute('task_index');
     }
 
-    #[Route('/user/{id}', name: 'user_tasks', methods: ['GET'])]
+    #[Route('/user/{id}', name: 'user_tasks', methods: ['POST'])]
     public function userTasks(Request $request,JWTTokenManagerInterface $jwtManager, UserRepository $userRepository,int $id): Response
     {
         $data = json_decode($request->getContent(), true);

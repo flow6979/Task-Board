@@ -246,7 +246,7 @@ class UserController extends AbstractController
                 'role' => $user->getRoles(),
                 'phoneNumber' => $user->getPhoneNumber(),
             ]
-        ], Response::HTTP_CREATED);
+        ]);
     }
 
     #[Route('/user/{id}', name: 'update_user', methods: ['PUT'])]
@@ -285,7 +285,7 @@ class UserController extends AbstractController
         $user = $userRepository->find($id);
 
         if (!$user) {
-            return new JsonResponse(['error' => 'User not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'User not found.']);
         }
 
         if (isset($data['fullName'])) {
@@ -345,7 +345,7 @@ class UserController extends AbstractController
     
         if(!in_array('ROLE_ADMIN', $user->getRoles()))
         {
-            return new JsonResponse(["msg"=>"Access Denied"], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(["accessStatus"=>"Access Denied"]);
         }
     
         
@@ -357,7 +357,7 @@ class UserController extends AbstractController
         $user = $userRepository->find($id);
 
         if (!$user) {
-            return new JsonResponse(['error' => 'User not found.'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'User not found.']);
         }
 
         $em->remove($user);
