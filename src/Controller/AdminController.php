@@ -74,14 +74,27 @@ class AdminController extends AbstractController
         $adminUsersArray = [];
 
         foreach ($adminUsers as $adminUser) {
+            // Initialize default values for team data
+            $teamData = null;
+        
+            // Check if the team data exists before accessing it
+            if ($adminUser->getTeam() !== null) {
+                $teamData = [
+                    'id' => $adminUser->getTeam()->getId(),
+                ];
+            }
+        
+            // Append user data with possibly null team data
             $adminUsersArray[] = [
                 'id' => $adminUser->getId(),
                 'name' => $adminUser->getFullName(),
                 'email' => $adminUser->getEmail(),
                 'role' => $adminUser->getRoles(),
                 'phoneNumber' => $adminUser->getPhoneNumber(),
+                'team' => $teamData
             ];
         }
+        
 
         return new JsonResponse($adminUsersArray, Response::HTTP_OK);
     }
@@ -314,6 +327,7 @@ class AdminController extends AbstractController
                 'email' => $indUser->getEmail(),
                 'role' => $indUser->getRoles(),
                 'phone_number' => $indUser->getPhoneNumber(),
+
             ];
         }
 
@@ -878,7 +892,7 @@ class AdminController extends AbstractController
 
         // Toggle user role
         if (!in_array('ROLE_ADMIN', $user->getRoles())) {
-            $user->setRoles(['ROLE_ADMIN']);
+            $user->setRoles(['ROLE_ADMIN','ROLE_USER']);
         } else {
             $user->setRoles(['ROLE_USER']);
         }
